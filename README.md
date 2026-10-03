@@ -93,7 +93,7 @@ O `.zshrc` versionado é o que o dono do repositório usa no dia a dia. Além do
 - **Sistema**: `update` (atualização completa), `dnfs`/`dnfi`/`dnfr` (buscar, instalar e remover pacotes), `dnfinfo`, `dnfp` (qual pacote fornece um arquivo), `dnfl` (pacotes instalados, com filtro opcional) e `dnfh` (histórico do dnf).
 - **Git**: `gcommit` (add + commit), `gship` (add + commit + push), `gpush`, `gnew` (nova branch), `gsync` (fetch + pull com rebase), `gundo` (desfaz o último commit mantendo as mudanças), `gfix` (emenda o último commit), `glogp` (log em grafo), `gprune` (apaga branches já mescladas) e `gsave` (stash rápido).
 - **Atalhos**: `ll`, `..`, `...`, `zshconfig` (edita o `.zshrc`) e `zshreload`.
-- **Ambientes**: PATH de `~/.local/bin`, fnm, pnpm e cargo; `JAVA_HOME` automático; inicialização do conda, se ele existir em `~/anaconda3`.
+- **Ambientes**: PATH de `~/.local/bin`, fnm, pnpm e cargo; inicialização do conda, se ele existir em `~/anaconda3`.
 
 ### 8. Preparar ambientes de desenvolvimento (módulos 04, 06 e 09)
 - **04**: compiladores, cmake, Python, Java (25 e latest), Maven, MariaDB, SQLite, PostgreSQL e Podman.

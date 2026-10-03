@@ -138,17 +138,6 @@ setopt HIST_IGNORE_ALL_DUPS SHARE_HISTORY
 # export EDITOR='nvim'
 
 # ------------------------------------------------------------
-# Java (Fedora usa java-17-openjdk; Debian/Ubuntu usa -amd64)
-# ------------------------------------------------------------
-if [ -z "$JAVA_HOME" ]; then
-  for _jdir in /usr/lib/jvm/java-17-openjdk /usr/lib/jvm/java-17-openjdk-amd64 /usr/lib/jvm/temurin-17; do
-    if [ -d "$_jdir" ]; then export JAVA_HOME="$_jdir"; break; fi
-  done
-  unset _jdir
-fi
-[ -n "$JAVA_HOME" ] && export PATH="$JAVA_HOME/bin:$PATH"
-
-# ------------------------------------------------------------
 # Node (apenas fnm — nvm removido para evitar conflito e lentidão)
 # ------------------------------------------------------------
 FNM_PATH="$HOME/.local/share/fnm"
