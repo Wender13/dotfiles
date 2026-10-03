@@ -8,7 +8,7 @@ trigger: always_on
 O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
 
 ## Estrutura de Diretórios
-- `app.sh` (Raiz): **O Ponto de Entrada**. Descobre os módulos dinamicamente, lendo `scripts/*.sh` (exceto `lib.sh`) em ordem alfabética, por isso o prefixo numérico. Renderiza o menu interativo e aceita `--all` (execução headless) e `--help`; qualquer outra opção é recusada. O `app.sh` NUNCA executa comandos de sistema pesados diretamente; ele apenas delega para os scripts.
+- `app.sh` (Raiz): **O Ponto de Entrada**. Descobre os módulos dinamicamente, lendo `scripts/*.sh` (exceto `lib.sh`) em ordem alfabética, por isso o prefixo numérico. Renderiza o menu interativo e aceita, em qualquer ordem, `--all` (execução headless), uma política de versões (`--ask`, `--update` ou `--keep`) e `--help`; qualquer outra opção é recusada. Resolve a política (flag > `UPDATE_POLICY` do `.env` > padrão: `ask` no menu, `keep` no `--all`), mostra-a no topo do menu e a repassa aos módulos em `DOTFILES_UPDATE_POLICY`. O `app.sh` NUNCA executa comandos de sistema pesados diretamente; ele apenas delega para os scripts.
 - `scripts/NN-nome.sh`: os módulos, onde toda a "mão na massa" acontece. O nome do arquivo deve ter no máximo 24 caracteres (largura da coluna do menu; acima disso é truncado). Cada módulo declara seus metadados no cabeçalho:
   ```bash
   # MENU_DESC: Descricao curta (maximo 44 caracteres; acima disso e truncada no menu)
@@ -27,6 +27,12 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
   - `clone_if_missing <repo> <destino>`.
   - `load_env`: carrega o `.env` da raiz, se existir.
   - `ensure_flathub`: garante o remoto Flathub de sistema, habilitado e sem filtro.
+  - Política de versões (`UPDATE_POLICY`: `ask`, `update` ou `keep`; `ask` sem terminal vira `keep`):
+    - `install_packages <titulo> <pacotes...>`: instala os que faltam e oferece as versões novas dos instalados. Separados: `install_missing_packages` (nunca atualiza) e `offer_package_upgrades <titulo> <pacotes...>`. Grupos `@...` são sempre passados ao gerenciador.
+    - `install_flatpaks <apps...>`: o mesmo para Flatpaks de sistema.
+    - `offer_git_updates <titulo> <pastas...>`: avanço rápido (`merge --ff-only`) de clones atrás da origem; clones com alterações locais ou histórico divergente são só informados.
+    - `confirm_updates <titulo> <linhas...>`: imprime as linhas `nome atual -> nova`, o aviso de quebra e decide pela política (retorna 0 para atualizar). Sem linhas, retorna 1 sem imprimir nada.
+    - `version_gt <a> <b>`, `record_version <nome> <versao>` e `recorded_version <nome>` (registro em `~/.local/state/dotfiles/versions/` para o que não vem de pacote: temas, fontes, tema do GRUB, Plymouth).
 - `style/gnome/`: configuração do GNOME capturada de uma máquina já configurada e aplicada pelo módulo 11:
   - `dconf/*.ini`: chaves do dconf no formato de `dconf dump /` (`keybindings.ini`, `desktop.ini`, `shell.ini`, `apps.ini`). O marcador `@HOME@` é trocado pelo `$HOME` de quem aplica.
   - `extensions.txt`: extensões ativas, uma por linha (`UUID [pacote Fedora]`).
@@ -42,9 +48,9 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
 | --- | --- | --- | --- |
 | `01-setupEnv.sh` | Cria a estrutura `~/Dev` e clona os forks pessoais do GNOME e do tema GRUB | não | `GITHUB_USER` |
 | `02-permissions.sh` | Permissão de execução em `app.sh` e nos scripts de `scripts/`, `style/` e `tools/` | não | - |
-| `03-update.sh` | Atualiza sistema e Flatpaks; avisa sobre firmware (`fwupdmgr`) e reinício pendente | sim | - |
+| `03-update.sh` | Atualiza sistema e Flatpaks conforme a política de versões; avisa sobre firmware (`fwupdmgr`) e reinício pendente | sim | - |
 | `04-commonPrograms.sh` | Remove bloatware (no apt, só o que não arrasta outros pacotes), habilita RPM Fusion, codecs, driver VA-API da GPU (AMD/Intel) e pacotes base | sim | - |
-| `05-flatpakPrograms.sh` | Aplicativos via Flathub | sim | - |
+| `05-flatpakPrograms.sh` | Aplicativos via Flathub (atualizações conforme a política de versões) | sim | - |
 | `06-externalRepos.sh` | Repositórios de fornecedores (VSCode, Chrome, MongoDB, Docker) e Docker Desktop | sim | - |
 | `07-gitAndSSH.sh` | Identidade Git global e chave SSH | não | `GIT_USERNAME`, `GIT_EMAIL` |
 | `08-terminalAndShell.sh` | zsh, oh-my-zsh, plugins, Spaceship, Nerd Fonts, shell padrão, `.zshrc` | só para trocar o shell | - |
@@ -69,6 +75,7 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
 3. Executa todos os módulos em ordem, sem limpar a tela, preservando a saída de cada um.
 4. A falha de um módulo não interrompe os seguintes. Ao final, lista os módulos que falharam, mostra o caminho do log e sai com código 1 (ou 0 se tudo deu certo).
 5. Sem `.env`, os módulos 01 e 07 perguntam os dados no terminal: o 01 permite pular, o 07 exige os dados.
+6. A política de versões padrão é `keep`: só instala o que falta e lista o que tem versão nova. `--all --ask` pergunta uma vez por grupo; `--all --update` atualiza tudo.
 
 ## Dependências entre Módulos
 - O 10 instala o tema GRUB a partir do repositório clonado pelo 01.

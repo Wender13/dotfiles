@@ -5,10 +5,11 @@ Você está auxiliando no desenvolvimento de uma ferramenta de automação de Do
 ## 1. Arquitetura e Modularidade
 - O arquivo `app.sh` é o menu interativo de entrada (e o modo `--all`, headless). NÃO coloque lógica de instalação nele.
 - Toda nova automação deve ser um script isolado em `scripts/NN-nome.sh`, com os cabeçalhos `# MENU_DESC:` (máximo 44 caracteres) e `# CATEGORY:`. O `app.sh` descobre os módulos sozinho; não há arrays para editar.
-- Use a biblioteca `scripts/lib.sh` (via `source`) para cores, detecção de distro (`detect_distro`, `is_apt`, `is_dnf`), `ensure_command`, `clone_if_missing`, `load_env` e `ensure_flathub`.
+- Use a biblioteca `scripts/lib.sh` (via `source`) para cores, detecção de distro (`detect_distro`, `is_apt`, `is_dnf`), `ensure_command`, `clone_if_missing`, `load_env`, `ensure_flathub` e a política de versões (`install_packages`, `install_flatpaks`, `offer_git_updates`, `confirm_updates`).
 
 ## 2. Qualidade e Resiliência (Fail-Fast)
 - **Idempotência**: todos os scripts devem poder rodar infinitas vezes sem quebrar o sistema. Use `mkdir -p` e verifique a existência de arquivos, pacotes e programas antes de baixar ou instalar.
+- **Versões**: nunca atualize em silêncio o que já está instalado. Use as funções da política de versões do `lib.sh`, que mostram `atual -> nova`, avisam que versões novas podem quebrar recursos e respeitam `--ask`/`--update`/`--keep`.
 - **Set e Erros**: todo script em `scripts/` DEVE iniciar com `set -euo pipefail`. Não use `|| true` para esconder erros nem encadeie comandos críticos com `&&`.
 - **Caminhos**: evite caminhos absolutos hardcoded e o diretório atual. Use `$SCRIPT_DIR`, `$DOTFILES_DIR` e `mktemp`.
 - **Headless**: nenhum passo pode exigir interação quando o dado existe no `.env`.

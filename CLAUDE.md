@@ -10,7 +10,7 @@ A fonte de verdade das regras é a pasta `.agents/rules/` (formato do Antigravit
 
 3. **Fail-Fast**: Todo módulo começa com `set -euo pipefail`, importa `scripts/lib.sh` e chama `detect_distro`. É proibido usar `|| true` para esconder erros e encadear comandos críticos com `&&`.
 
-4. **Idempotência**: Rodar um módulo várias vezes não pode quebrar nem duplicar nada. Cheque antes de instalar, clonar, baixar, anexar linhas ou fazer backup.
+4. **Idempotência**: Rodar um módulo várias vezes não pode quebrar nem duplicar nada. Cheque antes de instalar, clonar, baixar, anexar linhas ou fazer backup. O que já está instalado nunca é atualizado em silêncio: use as funções da política de versões do `lib.sh` (`install_packages`, `install_flatpaks`, `offer_git_updates`, `confirm_updates`), que respeitam `--ask`/`--update`/`--keep`.
 
 5. **Fedora Primeiro**: O alvo principal é o Fedora 41+ com dnf5. Nunca use sintaxe do dnf4 e valide todo nome de pacote antes de usá-lo (`.agents/rules/06-fedora.md`). O ramo apt é secundário e a família RHEL não é suportada.
 

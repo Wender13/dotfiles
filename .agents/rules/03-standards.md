@@ -24,14 +24,23 @@ Se o usuário rodar qualquer módulo 5 vezes seguidas, não pode haver erros, du
 - **Ao criar diretórios**: use `mkdir -p`.
 - **Ao clonar repositórios**: use `clone_if_missing`.
 - **Ao adicionar linhas a arquivos**: use `grep -q` antes do append, ou substitua a chave se ela já existir.
-- **Ao instalar pacotes**: o `dnf`/`apt` já ignora pacotes instalados. Para downloads avulsos, instaladores externos e passos caros, cheque antes: `rpm -q`, `dpkg -s`, `command -v`, `compgen -G "padrao*"` ou a existência do diretório de destino.
-- **Flatpak**: use `flatpak install -y --or-update`.
+- **Ao instalar pacotes**: use `install_packages` (ou `install_missing_packages`), que pula os instalados. Para downloads avulsos, instaladores externos e passos caros, cheque antes: `rpm -q`, `dpkg -s`, `command -v`, `compgen -G "padrao*"` ou a existência do diretório de destino.
+- **Flatpak**: use `install_flatpaks`.
 - **Arquivos de repositório**: o `dnf config-manager addrepo` falha se o arquivo já existe; cheque antes.
 - **Backups de arquivos de sistema**: crie só uma vez (`[ ! -f arquivo.bak ]`), para nunca sobrescrever o original.
 - **Arquivos do usuário**: antes de sobrescrever um arquivo diferente do versionado (ex: `~/.zshrc`), faça backup com data.
 
+## 2.1. Política de Versões (o que já está instalado)
+Nunca atualize em silêncio algo que já está instalado: versões novas podem quebrar configurações, plugins e projetos. Toda atualização passa pela política (`ask`, `update` ou `keep`, ver `02-architecture.md`).
+- **Pacotes**: `install_packages "titulo" pacotes...`. Nunca rode `dnf upgrade`/`apt upgrade` sem passar por `confirm_updates` (o `dnf install` do dnf5 não atualiza o que já está instalado). Pacotes que precisam de opções especiais (`--allowerasing`, grupos) podem ser instalados direto; junte os nomes num array e ofereça as versões novas no fim com `offer_package_upgrades`, numa única pergunta por módulo (ex: `OFFER` nos módulos 04 e 09).
+- **Flatpaks**: `install_flatpaks apps...`. **Clones git** (plugins, temas, forks): `offer_git_updates "titulo" pastas...`.
+- **Demais casos** (linguagens, instaladores próprios, temas e fontes baixados): descubra a versão atual e a nova, compare com `version_gt` e chame `confirm_updates "titulo" "nome atual -> nova"` antes de atualizar. Para o que não informa a própria versão, grave o que foi instalado com `record_version` e compare com `recorded_version`.
+- **Uma pergunta por grupo**: junte as linhas de um mesmo grupo numa só chamada. Linguagens (Rust, Node, pnpm, uv) são perguntadas uma a uma.
+- **Rede**: consultas de versão nunca podem abortar o módulo. Use `var="$(comando)" || var=""` e trate o vazio como "não foi possível verificar", mantendo o que está instalado.
+- **Ferramentas que se atualizam sozinhas** (Claude Code, Antigravity CLI, Docker Desktop): apenas informe que já estão instaladas.
+
 ## 3. Modularidade e o `lib.sh`
-- **Não reinvente a roda**: use `detect_distro`, `is_apt`/`is_dnf`, `ensure_command`, `clone_if_missing`, `load_env` e `ensure_flathub` (ver `02-architecture.md`). Lógica usada por mais de um módulo deve ir para o `lib.sh`.
+- **Não reinvente a roda**: use `detect_distro`, `is_apt`/`is_dnf`, `ensure_command`, `clone_if_missing`, `load_env`, `ensure_flathub` e as funções da política de versões (ver `02-architecture.md`). Lógica usada por mais de um módulo deve ir para o `lib.sh`.
 - **Feedback Visual**: não use `echo` seco para dar títulos a tarefas. Use `print_header "Minha Tarefa"` e as variáveis de cor (`$C_GREEN` para sucesso, `$C_YELLOW` para avisos e passos pulados, `$C_RED` para erros).
 - **Evitar Sudo Desnecessário**: os módulos rodam como usuário normal (o `lib.sh` bloqueia root). Use `sudo` APENAS nas linhas que exigem (instalar pacotes, editar `/etc`, serviços).
 
@@ -49,6 +58,7 @@ cp "$DOTFILES_DIR/terminal/.zshrc" "$HOME/.zshrc"
 
 ## 5. Compatibilidade com o Modo Headless (`--all`)
 - Nenhum passo pode exigir interação se o dado estiver disponível no `.env`. Prompts (`read -r -p`) só como alternativa quando o valor não foi configurado.
+- Perguntas sobre versões só via `confirm_updates`: ela respeita a política e nunca pergunta com `keep`/`update` ou sem terminal.
 - Instaladores de terceiros devem receber argumentos que evitem menus interativos ou TUI (ex: o instalador do tema GRUB abre um `dialog` quando roda sem argumentos).
 - Comandos com confirmação usam `-y`. Prefira `sudo usermod --shell` a `chsh`, que pede senha própria.
 - Instaladores de toolchains não devem editar arquivos do shell (`--no-modify-path`, `UV_NO_MODIFY_PATH=1`, `--skip-shell`): o `.zshrc` do repositório é a fonte do PATH.

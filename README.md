@@ -45,6 +45,7 @@ O `.env` fica na raiz, é ignorado pelo git e guarda os dados pessoais. Nenhum d
 | `GIT_EMAIL` | 07 | `git config --global user.email` e comentário da chave SSH | Pergunta no terminal |
 | `GITHUB_USER` | 01 | Dono dos forks pessoais clonados (hidetopbar, lockkeys, grub2-theme) | Pergunta no terminal (Enter pula) |
 | `GRUB_THEME_ARGS` | 10 | Argumentos do instalador do tema GRUB (ex: `-b -t tela -s 1080p`) | Não instala tema no GRUB |
+| `UPDATE_POLICY` | todos | O que fazer com o que já está instalado e tem versão nova: `ask`, `update` ou `keep` (ver caso de uso 5) | Menu: `ask`; `--all`: `keep` |
 
 No Fedora, inclua `-b` em `GRUB_THEME_ARGS`: o `/boot` é uma partição separada, e o tema precisa ficar em `/boot/grub2/themes`.
 
@@ -57,6 +58,7 @@ cp .env.example .env && $EDITOR .env   # preencha todas as chaves
 ```
 - A senha do `sudo` é pedida **uma única vez**, no início, e mantida ativa durante toda a execução. Ao terminar, as credenciais em cache são invalidadas (`sudo -k`).
 - Os módulos rodam em ordem (01 a 11), sem limpar a tela, então a saída de cada um fica no histórico do terminal.
+- Por padrão o `--all` **não mexe no que já está instalado** (política `keep`): só instala o que falta e lista o que tem versão mais nova. Para ser perguntado, use `./app.sh --all --ask`; para atualizar tudo, `./app.sh --all --update` (caso de uso 5).
 - Rode a partir de um terminal **dentro da sessão do GNOME**: o módulo 11 aplica as configurações pela sessão gráfica.
 - Se um módulo falhar, os seguintes continuam. No fim aparece a lista dos módulos com falha, e o comando sai com código `1` (ou `0` se tudo deu certo).
 - Sem `.env`, o 01 e o 07 fazem perguntas no meio da execução.
@@ -67,7 +69,7 @@ cp .env.example .env && $EDITOR .env   # preencha todas as chaves
 ```bash
 ./app.sh
 ```
-Digite o número do módulo, acompanhe a execução, pressione Enter para voltar ao menu e `q` para sair. **Ctrl+C** durante um módulo interrompe só aquele módulo e volta ao menu; no prompt do menu, Ctrl+C sai. `./app.sh --help` mostra as opções. O resultado (sucesso ou status de erro) aparece ao fim de cada módulo.
+Digite o número do módulo, acompanhe a execução, pressione Enter para voltar ao menu e `q` para sair. **Ctrl+C** durante um módulo interrompe só aquele módulo e volta ao menu; no prompt do menu, Ctrl+C sai. `./app.sh --help` mostra as opções. No menu, a política de versões padrão é perguntar (`ask`); `./app.sh --update` ou `./app.sh --keep` mudam isso (caso de uso 5). O resultado (sucesso ou status de erro) aparece ao fim de cada módulo.
 
 ### 3. Executar um módulo isolado, sem o menu
 ```bash
@@ -76,17 +78,45 @@ bash scripts/05-flatpakPrograms.sh
 Útil em scripts próprios ou para repetir uma única etapa. Cada módulo funciona sozinho: dependências básicas (git, curl, flatpak, zsh) são instaladas se faltarem.
 
 ### 4. Reparar ou completar uma instalação interrompida
-Rode o mesmo módulo (ou o `--all`) de novo. O que já foi feito é detectado e pulado: pacotes instalados, repositórios configurados, clones existentes, fontes, temas, Node LTS e a chave SSH.
+Rode o mesmo módulo (ou o `--all`) de novo. O que já foi feito é detectado e pulado: pacotes instalados, repositórios configurados, clones existentes, fontes, temas, Node LTS e a chave SSH. O que já existe só é atualizado conforme a política de versões (caso de uso 5).
 
-### 5. Manter o sistema atualizado
-- Módulo `03`: `dnf upgrade --refresh`, `dnf autoremove` e `flatpak update`. No fim, **avisa** se há atualização de firmware (`fwupdmgr`; aplicar fica a seu critério com `fwupdmgr update`) e se é preciso reiniciar (kernel, glibc etc.).
+### 5. Controlar versões do que já está instalado
+Quando um pacote, aplicativo, linguagem, tema, fonte, plugin ou extensão **já está instalado e existe versão mais nova**, o app segue uma de três políticas:
+
+| Política | Como ativar | O que acontece |
+| --- | --- | --- |
+| `ask` (perguntar) | padrão do menu; `./app.sh --ask` ou `./app.sh --all --ask` | Mostra `versão atual -> versão nova`, avisa que **versões novas podem mudar comportamento ou quebrar recursos** e pergunta. A resposta padrão (Enter) é **manter**. |
+| `update` (atualizar) | `./app.sh --update` ou `./app.sh --all --update` | Atualiza tudo o que tiver versão mais nova, mostrando o mesmo aviso. |
+| `keep` (manter) | padrão do `--all`; `./app.sh --keep` | Nunca mexe no que já está instalado; só instala o que falta e lista o que poderia ser atualizado. |
+
+Para mudar o padrão, defina `UPDATE_POLICY=ask`, `update` ou `keep` no `.env`; uma flag na linha de comando tem prioridade. A política em uso aparece no topo do menu. Sem um terminal para responder (por exemplo, com a entrada redirecionada), `ask` vira `keep`.
+
+As perguntas são **uma por grupo** (por exemplo, "04 - programas comuns: 6 item(s) com versão mais nova"), e **uma por linguagem**, porque trocar a versão delas é o que mais quebra projetos:
+
+| O que | Como a versão é comparada | Como atualiza |
+| --- | --- | --- |
+| Pacotes dnf/apt (04, 06, 09, 10, extensões empacotadas no 11) | versão instalada x repositório | `dnf upgrade` / `apt-get install --only-upgrade` só dos itens listados |
+| Flatpaks (05) | `flatpak remote-ls --updates` | `flatpak update` dos itens listados |
+| Rust | `rustup check` | `rustup update` |
+| Node.js | versão padrão do fnm x LTS mais recente | instala o LTS e o define como padrão (pacotes globais do npm ficam na versão anterior) |
+| pnpm | versão x registro do npm | `pnpm self-update` |
+| uv (instalado pelo script oficial, no ramo apt) | versão x último release | `uv self update` |
+| Temas (Orchis, Tela Circle, Vimix), Plymouth e Nerd Fonts | versão registrada x origem (commit ou release) | reinstala a versão nova |
+| oh-my-zsh, plugins, Spaceship e seus forks | commits novos no repositório de origem | avanço rápido (`git merge --ff-only`); repositórios com alterações locais ou histórico divergente nunca são tocados |
+| Tema do GRUB | commit do fork + opções do `.env` | reinstala |
+| Extensões do extensions.gnome.org | versão instalada x publicada para o seu GNOME | baixa e instala a versão nova |
+
+Claude Code, Antigravity CLI e Docker Desktop se atualizam sozinhos; o app só informa que já estão instalados. As versões de temas, fontes e tema do GRUB ficam registradas em `~/.local/state/dotfiles/versions/`; o que foi instalado antes desse registro aparece como versão "desconhecida".
+
+### 6. Manter o sistema atualizado
+- Módulo `03`: `dnf upgrade --refresh`, `dnf autoremove` e `flatpak update`, seguindo a política de versões: com `keep` só lista o que há para atualizar; com `ask` mostra a lista e pergunta uma vez para o sistema e uma vez para os Flatpaks. No fim, **avisa** se há atualização de firmware (`fwupdmgr`; aplicar fica a seu critério com `fwupdmgr update`) e se é preciso reiniciar (kernel, glibc etc.).
 - No dia a dia, a função `update` do `.zshrc` atualiza pacotes e Flatpaks, limpa o cache e os Flatpaks sem uso e avisa se é preciso reiniciar.
 
-### 6. Configurar identidade Git e chave SSH (módulo 07)
+### 7. Configurar identidade Git e chave SSH (módulo 07)
 Define nome, e-mail, branch padrão `main` e cores, e gera uma chave `ed25519` em `~/.ssh/id_ed25519` se ainda não existir nenhuma chave pública. Ao final, a chave pública é exibida para você cadastrar no GitHub/GitLab.
 A chave é gerada **sem passphrase**, para não travar o modo automático. Se quiser uma, rode depois `ssh-keygen -p -f ~/.ssh/id_ed25519`.
 
-### 7. Restaurar o terminal em outra máquina (módulo 08)
+### 8. Restaurar o terminal em outra máquina (módulo 08)
 Instala zsh, oh-my-zsh, os plugins (k, autosuggestions, syntax-highlighting, completions), o tema Spaceship e as Nerd Fonts JetBrainsMono e FiraCode. Também define o zsh como shell padrão e copia `terminal/.zshrc` para `~/.zshrc`.
 Se o seu `~/.zshrc` for diferente do versionado, um backup é salvo como `~/.zshrc.bak.<data>` antes da cópia. Para versionar mudanças pessoais, edite `terminal/.zshrc` no repositório e rode o 08 de novo.
 
@@ -98,18 +128,18 @@ O `.zshrc` versionado é o que o dono do repositório usa no dia a dia. Além do
 - **bat**: `bat arquivo` mostra o arquivo com destaque de sintaxe e números de linha; o `cat` continua o original.
 - **Ambientes**: PATH de `~/.local/bin`, fnm, pnpm e cargo; inicialização do conda, se ele existir em `~/anaconda3`.
 
-### 8. Preparar ambientes de desenvolvimento (módulos 04, 06 e 09)
+### 9. Preparar ambientes de desenvolvimento (módulos 04, 06 e 09)
 - **04**: compiladores, cmake, Python, Java (25 e latest), Maven, MariaDB, SQLite, PostgreSQL e Podman.
 - **06**: VSCode, Google Chrome, MongoDB 8.0 (com mongosh), Docker Engine (com buildx e compose), todos de repositórios oficiais e atualizados pelo `dnf upgrade`, e o Docker Desktop.
 - **09**: dependências do Tauri, Rust (rustup/cargo), eza, uv (Python), Node.js LTS (fnm; uma versão padrão que você já tenha escolhido é mantida), **pnpm** autônomo (instalador oficial, em `~/.local/share/pnpm`, independente da versão do Node) e duas CLIs de IA pelos instaladores oficiais, ambas em `~/.local/bin` e com atualização automática: **Claude Code** (`claude`) e **Antigravity** (`agy`). O que já estiver instalado é pulado. Os instaladores do pnpm e do Antigravity tentam editar o perfil do shell; eles rodam com um `HOME` temporário para não mexer no `~/.zshrc` gerenciado pelo repositório.
 
 Os bancos de dados são apenas instalados; inicialização e serviços ficam a seu critério (ex: `sudo postgresql-setup --initdb`, `sudo systemctl enable --now mariadb`, `sudo systemctl start mongod`).
 
-### 9. Personalizar o visual e o boot (módulos 01 e 10)
+### 10. Personalizar o visual e o boot (módulos 01 e 10)
 1. Defina `GITHUB_USER` e `GRUB_THEME_ARGS` no `.env`.
 2. Rode o **01**: ele clona seus forks (extensões e tema GRUB) para `~/Dev/linux_projects/gnome/`.
 3. Rode o **10**: ele instala o tema GTK Orchis, os ícones Tela Circle e os cursores Vimix (pulando os já instalados), oculta o menu do GRUB (`GRUB_TIMEOUT=0`, `GRUB_TIMEOUT_STYLE=hidden`), instala o tema do GRUB e regenera a configuração. Também instala a tela de boot **Plymouth deus_ex** (do pack_2 de [adi1090x/plymouth-themes](https://github.com/adi1090x/plymouth-themes), baixando só esse tema) e reconstrói o initramfs; se ela já for a ativa, nada é feito.
-4. Rode o **11** para ativar os temas e o restante das configurações (caso de uso 11).
+4. Rode o **11** para ativar os temas e o restante das configurações (caso de uso 12).
 
 O `/etc/default/grub` original é salvo uma única vez como `/etc/default/grub.bak`. Para restaurá-lo:
 ```bash
@@ -118,10 +148,10 @@ sudo grub2-mkconfig -o /boot/grub2/grub.cfg
 ```
 O menu do GRUB continua acessível: no Fedora, ele reaparece automaticamente após uma falha de boot.
 
-### 10. Instalar os aplicativos de desktop (módulo 05)
+### 11. Instalar os aplicativos de desktop (módulo 05)
 Via Flathub (atualização automática): Obsidian, Postman, Insomnia, OnlyOffice, Discord, DBeaver, MongoDB Compass, LocalSend, Extension Manager, Prism Launcher, Zotero, Podman Desktop e Inkscape.
 
-### 11. Restaurar extensões, configurações e atalhos do GNOME (módulo 11)
+### 12. Restaurar extensões, configurações e atalhos do GNOME (módulo 11)
 Deixa o GNOME igual ao da máquina de onde as configurações foram capturadas, sem abrir o Settings nem o Extension Manager:
 - **Extensões**: instala as listadas em `style/gnome/extensions.txt` (hoje: User Themes, Clipboard History, Vertical App Grid, Blur my Shell, Just Perfection, Burn My Windows, Compiz Magic Lamp, Lock Keys, Caffeine e Advanced Alt+Tab Window Switcher). Usa o pacote do Fedora quando ele existe; as demais vêm do extensions.gnome.org, na versão do seu GNOME Shell.
 - **Configurações das extensões**: blur, efeitos de janela (incluindo o perfil do Burn My Windows), painel do Just Perfection, grade de apps e tema do shell.
@@ -134,7 +164,7 @@ Rode de um terminal dentro da sessão do GNOME e, no fim, **faça logout e login
 
 O papel de parede não é restaurado: o repositório é público e imagens de terceiros têm direitos autorais, então ele fica como escolha manual.
 
-### 12. Salvar no repositório as configurações atuais do GNOME
+### 13. Salvar no repositório as configurações atuais do GNOME
 Mudou um atalho, instalou uma extensão ou ajustou algo no Settings? Capture o estado atual:
 ```bash
 bash style/gnome/bin/export-gnome-settings.sh
@@ -150,10 +180,10 @@ Proteção contra vazamento de segredos (o repositório pode ser público):
 
 As regras são heurísticas: revise sempre o `git diff` antes de commitar.
 
-### 13. Adicionar uma nova etapa de automação
+### 14. Adicionar uma nova etapa de automação
 Veja [Desenvolvimento](#desenvolvimento). Basta criar `scripts/NN-nome.sh` com o cabeçalho certo: o menu e o `--all` passam a incluí-lo automaticamente.
 
-### 14. Usar agentes de IA para manter o projeto
+### 15. Usar agentes de IA para manter o projeto
 Antigravity, Claude Code, Cursor e GitHub Copilot já encontram as regras do projeto. Veja [Trabalhando com agentes de IA](#trabalhando-com-agentes-de-ia).
 
 ## Módulos
@@ -162,9 +192,9 @@ Antigravity, Claude Code, Cursor e GitHub Copilot já encontram as regras do pro
 | --- | --- | --- | --- |
 | 01 | `01-setupEnv.sh` | Cria `~/Dev/{linux_projects,personal_projects,college_projects}` e clona os forks pessoais do GNOME e do tema GRUB | não |
 | 02 | `02-permissions.sh` | Dá permissão de execução a `app.sh` e aos scripts de `scripts/`, `style/` e `tools/` | não |
-| 03 | `03-update.sh` | Atualiza pacotes do sistema e Flatpaks, remove dependências órfãs e avisa sobre firmware e reinício | sim |
+| 03 | `03-update.sh` | Atualiza pacotes do sistema e Flatpaks conforme a política de versões, remove dependências órfãs e avisa sobre firmware e reinício | sim |
 | 04 | `04-commonPrograms.sh` | Remove LibreOffice e bloatware do GNOME; habilita o RPM Fusion; instala codecs (ffmpeg completo e grupo multimedia) e o driver de aceleração de vídeo da GPU detectada (AMD ou Intel; NVIDIA só recebe um aviso); instala ferramentas de CLI (zsh, git, fzf, btop, bat, eza, zoxide, tldr, curl, wget, script), apps (GNOME Tweaks, VLC, Tilix, GIMP, OBS Studio), ferramentas de dev, bancos de dados, Podman, Flatpak, Python, Java, Maven e powerline-fonts; garante o Flathub. No apt, só remove o bloatware que não arrastaria outros pacotes | sim |
-| 05 | `05-flatpakPrograms.sh` | Instala ou atualiza os aplicativos Flatpak listados no caso de uso 10 | sim |
+| 05 | `05-flatpakPrograms.sh` | Instala os aplicativos Flatpak listados no caso de uso 11 que faltam; atualizações seguem a política de versões | sim |
 | 06 | `06-externalRepos.sh` | Configura os repositórios oficiais e instala VSCode, Chrome, MongoDB, Docker CE e Docker Desktop; habilita o serviço docker e adiciona o usuário ao grupo `docker` | sim |
 | 07 | `07-gitAndSSH.sh` | Identidade Git global e chave SSH ed25519 | não |
 | 08 | `08-terminalAndShell.sh` | zsh, oh-my-zsh, plugins, Spaceship, Nerd Fonts, shell padrão e `.zshrc` | só para trocar o shell |
@@ -182,7 +212,7 @@ Transparência sobre tudo o que sai do `$HOME`:
 - **Usuário**: o shell padrão passa a ser o zsh (`usermod --shell`).
 - **Boot**: `/etc/default/grub` (com backup) e `/boot/grub2/grub.cfg`; tema GRUB em `/boot/grub2/themes` (com `-b`); tema Plymouth em `/usr/share/plymouth/themes/deus_ex`, com o initramfs reconstruído.
 - **Configurações do GNOME (dconf do seu usuário)**: as chaves de `style/gnome/dconf/*.ini`. Só as chaves listadas são alteradas; o resto fica como está.
-- **No `$HOME`**: `~/Dev`, `~/.oh-my-zsh`, `~/.zshrc` (com backup), `~/.local/share/fonts/NerdFonts`, temas em `~/.themes` e `~/.local/share/icons`, extensões em `~/.local/share/gnome-shell/extensions`, `~/.config/burn-my-windows`, `~/.cargo`, `~/.rustup`, `~/.local/share/fnm`, `~/.local/share/pnpm`, Claude Code em `~/.local/bin/claude` e `~/.local/share/claude`, Antigravity em `~/.local/bin/agy`, logs em `~/.local/state/dotfiles/logs`, `~/.gitconfig` e `~/.ssh`.
+- **No `$HOME`**: `~/Dev`, `~/.oh-my-zsh`, `~/.zshrc` (com backup), `~/.local/share/fonts/NerdFonts`, temas em `~/.themes` e `~/.local/share/icons`, extensões em `~/.local/share/gnome-shell/extensions`, `~/.config/burn-my-windows`, `~/.cargo`, `~/.rustup`, `~/.local/share/fnm`, `~/.local/share/pnpm`, Claude Code em `~/.local/bin/claude` e `~/.local/share/claude`, Antigravity em `~/.local/bin/agy`, logs em `~/.local/state/dotfiles/logs`, versões registradas em `~/.local/state/dotfiles/versions`, `~/.gitconfig` e `~/.ssh`.
 
 ## Solução de problemas
 - **Algo falhou no `--all` e a saída já rolou da tela**: veja o log indicado no resumo final (`~/.local/state/dotfiles/logs/`).
@@ -250,6 +280,15 @@ Transparência sobre tudo o que sai do `$HOME`:
 | `clone_if_missing repo destino` | `git clone` idempotente |
 | `load_env` | Carrega o `.env` da raiz |
 | `ensure_flathub` | Garante o remoto Flathub de sistema |
+| `install_packages titulo pacote...` | Instala os pacotes que faltam e oferece as versões novas dos instalados (política de versões) |
+| `install_missing_packages pacote...` | Só instala o que falta; nunca atualiza |
+| `offer_package_upgrades titulo pacote...` | Só a parte de oferecer versões novas dos instalados |
+| `install_flatpaks app...` | O mesmo para Flatpaks |
+| `offer_git_updates titulo pasta...` | Oferece avanço rápido de clones git atrás da origem (pula os com alterações locais ou divergentes) |
+| `confirm_updates titulo linha...` | Mostra `atual -> nova`, o aviso e decide pela política (`ask` pergunta) |
+| `record_version` / `recorded_version` | Registro de versão do que não vem de pacote (temas, fontes) |
+| `version_gt a b` | Compara versões (`24.9` < `24.21`) |
+| `UPDATE_POLICY` | Política em uso: `ask`, `update` ou `keep` |
 | `print_header "Titulo"` | Título visual de etapa |
 | `DOTFILES_DIR` | Raiz do repositório |
 | `C_GREEN`, `C_YELLOW`, `C_RED`, ... | Cores para mensagens |
@@ -257,6 +296,7 @@ Transparência sobre tudo o que sai do `$HOME`:
 ### Padrões obrigatórios
 - **Fail-fast**: `set -euo pipefail`; nada de `|| true` para esconder erros e nada de comandos críticos encadeados com `&&`.
 - **Idempotência**: cheque antes de instalar, clonar, baixar, anexar ou fazer backup.
+- **Política de versões**: o que já está instalado nunca é atualizado em silêncio. Use `install_packages`, `install_flatpaks`, `offer_git_updates` ou `confirm_updates`; para o que não vem de pacote, registre a versão com `record_version`. Consultas de versão pela rede nunca podem abortar o módulo (sem rede, a checagem é pulada e o que está instalado é mantido).
 - **Sem caminhos fixos**: use `$SCRIPT_DIR`, `$DOTFILES_DIR`, `$HOME` e `mktemp`.
 - **Sem dados pessoais no código**: use o `.env`.
 - **Fedora**: só sintaxe do dnf5 e nomes de pacote validados (detalhes em `.agents/rules/06-fedora.md`).
