@@ -52,6 +52,7 @@ cp "$DOTFILES_DIR/terminal/.zshrc" "$HOME/.zshrc"
 - Instaladores de terceiros devem receber argumentos que evitem menus interativos ou TUI (ex: o instalador do tema GRUB abre um `dialog` quando roda sem argumentos).
 - Comandos com confirmação usam `-y`. Prefira `sudo usermod --shell` a `chsh`, que pede senha própria.
 - Instaladores de toolchains não devem editar arquivos do shell (`--no-modify-path`, `UV_NO_MODIFY_PATH=1`, `--skip-shell`): o `.zshrc` do repositório é a fonte do PATH.
+- Quando o instalador oficial não tem opção para isso (ex: `pnpm setup` e `agy install`, que sempre editam o perfil), rode-o com um `HOME` descartável (`env HOME="$(mktemp -d)"`) e aponte o binário para o destino real (`PNPM_HOME`, `--dir`). Teste num `HOME` isolado que o `.zshrc` continua idêntico.
 
 ## 6. Como Adicionar Novos Passos
 Quando uma IA for solicitada a "adicionar um novo passo na automação", ela deve:
@@ -82,7 +83,9 @@ NUNCA execute os módulos reais no sistema do usuário para testar: eles instala
 5. **Flatpak**: `flatpak remote-info flathub <app-id>`.
 6. **Módulos sem root** (01, 07, 08): execute com `HOME` e `XDG_CONFIG_HOME` apontando para um diretório temporário, e rode duas vezes para provar a idempotência.
 7. **Módulo 11 (GNOME)**: nunca rode `dconf load` na sessão real do usuário para testar. Execute o módulo com `HOME` temporário, `DBUS_SESSION_BUS_ADDRESS` apontando para um socket inexistente e `sudo`/`dconf` falsos no `PATH` (que só registram as chamadas). Valide os `.ini` com `dconf load` real dentro de um container: `podman run --rm -v "$PWD/style/gnome:/mnt/gnome:ro,Z" registry.fedoraproject.org/fedora:44` com `dbus-daemon` e `dconf` instalados e `dbus-run-session`.
-8. **Ajustes no `tools/check.sh`**: ao criar uma nova convenção verificável, acrescente a checagem lá.
+8. **Ajustes no `tools/check.sh`**: ao criar uma nova convenção verificável, acrescente a checagem lá. O mesmo script roda no CI (Ubuntu): não use `awk` para contar caracteres (o `mawk` do Ubuntu conta bytes) e mantenha o shellcheck na imagem fixa (0.11.0).
+9. **Ramo apt**: valide num container `docker.io/library/ubuntu:24.04` com `apt-get install -s` (simulação) e, para repositórios de fornecedor, execute o próprio bloco do módulo dentro do container antes de simular.
+10. **Harness de teste**: ao medir código de saída num pseudo-terminal, colha o processo com espera bloqueante; um `waitpid` com `WNOHANG` que ainda não terminou devolve status 0 e mascara falhas.
 
 ## 8. Configurações do GNOME
 - Não edite `style/gnome/dconf/*.ini` nem `extensions.txt` à mão quando a mudança puder ser feita no GNOME e reexportada com `bash style/gnome/bin/export-gnome-settings.sh`.

@@ -43,11 +43,13 @@ Passe ao `dnf remove` somente os pacotes de fato instalados (`rpm -qa --qf '%{NA
 - **Docker CE**: use o `docker-ce.repo` oficial com `addrepo`. Antes de uma nova versão do Fedora, confira em docs.docker.com se ela já é suportada.
 - **Claude Code**: não usa repositório. Por decisão do usuário, segue o método recomendado no site oficial (instalador nativo, módulo 09), sem `sudo`.
 - **Flathub**: remoto de sistema, garantido pelo `ensure_flathub` (adiciona, habilita e remove filtros).
+- **Aceleração de vídeo (VA-API)**: o Mesa do Fedora vem sem H.264/H.265. AMD: `mesa-va-drivers-freeworld` (RPM Fusion free); Intel: `intel-media-driver` (RPM Fusion nonfree). Não faça a troca do `mesa-vulkan-drivers-freeworld`: no Fedora 44 a versão dele estava atrás da do Fedora e o dnf resolveu para o pacote i686, substituindo quatro pacotes. NVIDIA não é automatizada (módulo do kernel assinado para o Secure Boot).
 - **Extensões do GNOME**: várias existem como pacote `gnome-shell-extension-*`. Para descobrir o pacote de uma extensão: `dnf repoquery --whatprovides "/usr/share/gnome-shell/extensions/<UUID>/metadata.json"` (o exportador faz isso sozinho).
 
 ## 5. Boot (GRUB e Plymouth)
 - No Fedora 34+ com UEFI, `/boot/efi/EFI/fedora/grub.cfg` é um stub que encadeia `/boot/grub2/grub.cfg`. Gere a configuração **somente** com `grub2-mkconfig -o /boot/grub2/grub.cfg`; nunca escreva por cima do stub.
 - O `/etc/default/grub` do Fedora não tem a chave `GRUB_TIMEOUT_STYLE`. Um `sed` sozinho não faz nada: adicione a chave quando estiver ausente.
+- Plymouth: `plymouth-set-default-theme -R <tema>` ativa o tema e reconstrói o initramfs com o dracut. Temas ficam em `/usr/share/plymouth/themes/<tema>`; temas baseados em script precisam do `plymouth-plugin-script`. (No Ubuntu não existe `plymouth-set-default-theme`: lá o tema é a alternativa `default.plymouth`, seguida de `update-initramfs -u`.)
 - O `/boot` é uma partição separada. Temas do GRUB devem ser instalados em `/boot/grub2/themes` (opção `-b` do instalador do tema).
 - Faça backup de arquivos de boot apenas uma vez, preservando o original.
 
@@ -55,3 +57,5 @@ Passe ao `dnf remove` somente os pacotes de fato instalados (`rpm -qa --qf '%{NA
 - O `chsh` pede a própria senha e trava o modo headless; use `sudo usermod --shell <caminho> "$USER"`.
 - O pacote `util-linux-user` não existe mais: o `chsh` faz parte do `util-linux`.
 - O `wget` do Fedora é fornecido pelo `wget2-wget`; o nome `wget` funciona via "provides".
+- O comando `script` (usado pelo log do `--all`) fica no pacote `util-linux-script`, que não vem instalado por padrão.
+- Reinício pendente: `dnf needs-restarting -r --cacheonly` (sai com 1 quando é preciso reiniciar). Firmware: `fwupdmgr get-updates --json` não faz perguntas e usa os metadados que o próprio fwupd atualiza.

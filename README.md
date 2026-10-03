@@ -3,8 +3,8 @@
 Coleção de scripts Bash que transforma uma instalação limpa de Linux em um ambiente de desenvolvimento completo: programas, codecs, repositórios oficiais, ferramentas de linguagem, terminal, temas, extensões, configurações e atalhos do GNOME, e bootloader. A ideia é não precisar configurar nada à mão depois.
 
 - **Alvo principal**: Fedora 41 ou superior (dnf5), com GNOME. Validado no Fedora 44.
-- **Suporte secundário**: Debian, Ubuntu e derivados (apt), sem validação contínua.
-- **Não suportado**: RHEL, CentOS, Rocky e Alma (o ramo dnf depende de repositórios exclusivos do Fedora).
+- **Suporte secundário**: Debian, Ubuntu e derivados (apt). Validado por simulação num container Ubuntu 24.04, não numa instalação real.
+- **Não suportado**: RHEL, CentOS, Rocky e Alma (o ramo dnf depende de repositórios exclusivos do Fedora) e Fedora Atomic (Silverblue, Kinoite), onde pacotes são aplicados com rpm-ostree.
 
 Todos os módulos são **idempotentes**: rodar de novo não duplica nada e completa o que ficou faltando numa execução interrompida.
 
@@ -59,6 +59,7 @@ cp .env.example .env && $EDITOR .env   # preencha todas as chaves
 - Rode a partir de um terminal **dentro da sessão do GNOME**: o módulo 11 aplica as configurações pela sessão gráfica.
 - Se um módulo falhar, os seguintes continuam. No fim aparece a lista dos módulos com falha, e o comando sai com código `1` (ou `0` se tudo deu certo).
 - Sem `.env`, o 01 e o 07 fazem perguntas no meio da execução.
+- **Log completo** de cada execução em `~/.local/state/dotfiles/logs/setup-<data>.log` (pasta só sua, os 10 mais recentes são mantidos); o caminho aparece no resumo final. Leia com `less -R`. Só a saída é gravada: a senha digitada nunca vai para o log.
 - Depois de terminar, **faça logout e login** (ou reinicie) para aplicar o shell zsh, o grupo `docker` e as fontes.
 
 ### 2. Escolher módulos específicos pelo menu
@@ -77,8 +78,8 @@ bash scripts/05-flatpakPrograms.sh
 Rode o mesmo módulo (ou o `--all`) de novo. O que já foi feito é detectado e pulado: pacotes instalados, repositórios configurados, clones existentes, fontes, temas, Node LTS e a chave SSH.
 
 ### 5. Manter o sistema atualizado
-- Módulo `03`: `dnf upgrade --refresh`, `dnf autoremove` e `flatpak update`.
-- No dia a dia, o alias `atualizar` do `.zshrc` faz a atualização via dnf/apt.
+- Módulo `03`: `dnf upgrade --refresh`, `dnf autoremove` e `flatpak update`. No fim, **avisa** se há atualização de firmware (`fwupdmgr`; aplicar fica a seu critério com `fwupdmgr update`) e se é preciso reiniciar (kernel, glibc etc.).
+- No dia a dia, o alias `atualizar` do `.zshrc` faz o mesmo para pacotes e Flatpaks, parando no primeiro erro.
 
 ### 6. Configurar identidade Git e chave SSH (módulo 07)
 Define nome, e-mail, branch padrão `main` e cores, e gera uma chave `ed25519` em `~/.ssh/id_ed25519` se ainda não existir nenhuma chave pública. Ao final, a chave pública é exibida para você cadastrar no GitHub/GitLab.
@@ -88,17 +89,19 @@ A chave é gerada **sem passphrase**, para não travar o modo automático. Se qu
 Instala zsh, oh-my-zsh, os plugins (k, autosuggestions, syntax-highlighting, completions), o tema Spaceship e as Nerd Fonts JetBrainsMono e FiraCode. Também define o zsh como shell padrão e copia `terminal/.zshrc` para `~/.zshrc`.
 Se o seu `~/.zshrc` for diferente do versionado, um backup é salvo como `~/.zshrc.bak.<data>` antes da cópia. Para versionar mudanças pessoais, edite `terminal/.zshrc` no repositório e rode o 08 de novo.
 
+Aliases incluídos: `atualizar` (sistema e Flatpaks), `dotf` (vai para este repositório, onde quer que ele tenha sido clonado: o 08 registra o caminho em `~/.config/dotfiles/location`), `dev` (`~/Dev`), `venv` (ativa o `.venv` da pasta atual) e `mongo-activate`/`mongo-deactivate` (liga e desliga o MongoDB).
+
 ### 8. Preparar ambientes de desenvolvimento (módulos 04, 06 e 09)
 - **04**: compiladores, cmake, Python, Java (25 e latest), Maven, MariaDB, SQLite, PostgreSQL e Podman.
 - **06**: VSCode, Google Chrome, MongoDB 8.0 (com mongosh), Docker Engine (com buildx e compose), todos de repositórios oficiais e atualizados pelo `dnf upgrade`, e o Docker Desktop.
-- **09**: dependências do Tauri, Rust (rustup/cargo), eza, uv (Python), Node.js LTS (fnm), pnpm e **Claude Code**, este pelo método recomendado no site oficial (`curl -fsSL https://claude.ai/install.sh | bash`). Ele fica em `~/.local/bin/claude` e se atualiza sozinho. Se o `claude` já existir, o passo é pulado.
+- **09**: dependências do Tauri, Rust (rustup/cargo), eza, uv (Python), Node.js LTS (fnm; uma versão padrão que você já tenha escolhido é mantida), **pnpm** autônomo (instalador oficial, em `~/.local/share/pnpm`, independente da versão do Node) e duas CLIs de IA pelos instaladores oficiais, ambas em `~/.local/bin` e com atualização automática: **Claude Code** (`claude`) e **Antigravity** (`agy`). O que já estiver instalado é pulado. Os instaladores do pnpm e do Antigravity tentam editar o perfil do shell; eles rodam com um `HOME` temporário para não mexer no `~/.zshrc` gerenciado pelo repositório.
 
 Os bancos de dados são apenas instalados; inicialização e serviços ficam a seu critério (ex: `sudo postgresql-setup --initdb`, `sudo systemctl enable --now mariadb`, ou os aliases `mongo-activate`/`mongo-deactivate` do `.zshrc`).
 
 ### 9. Personalizar o visual e o boot (módulos 01 e 10)
 1. Defina `GITHUB_USER` e `GRUB_THEME_ARGS` no `.env`.
 2. Rode o **01**: ele clona seus forks (extensões e tema GRUB) para `~/Dev/linux_projects/gnome/`.
-3. Rode o **10**: ele instala o tema GTK Orchis, os ícones Tela Circle e os cursores Vimix (pulando os já instalados), oculta o menu do GRUB (`GRUB_TIMEOUT=0`, `GRUB_TIMEOUT_STYLE=hidden`), instala o tema do GRUB e regenera a configuração.
+3. Rode o **10**: ele instala o tema GTK Orchis, os ícones Tela Circle e os cursores Vimix (pulando os já instalados), oculta o menu do GRUB (`GRUB_TIMEOUT=0`, `GRUB_TIMEOUT_STYLE=hidden`), instala o tema do GRUB e regenera a configuração. Também instala a tela de boot **Plymouth deus_ex** (do pack_2 de [adi1090x/plymouth-themes](https://github.com/adi1090x/plymouth-themes), baixando só esse tema) e reconstrói o initramfs; se ela já for a ativa, nada é feito.
 4. Rode o **11** para ativar os temas e o restante das configurações (caso de uso 11).
 
 O `/etc/default/grub` original é salvo uma única vez como `/etc/default/grub.bak`. Para restaurá-lo:
@@ -122,7 +125,7 @@ Deixa o GNOME igual ao da máquina de onde as configurações foram capturadas, 
 
 Rode de um terminal dentro da sessão do GNOME e, no fim, **faça logout e login** para as extensões novas carregarem. Rodar de novo não reinstala o que já existe e só reaplica as mesmas chaves. Para que os temas apareçam, o módulo 10 deve ter rodado antes.
 
-O papel de parede não é restaurado, porque a imagem não fica no repositório (ver backlog).
+O papel de parede não é restaurado: o repositório é público e imagens de terceiros têm direitos autorais, então ele fica como escolha manual.
 
 ### 12. Salvar no repositório as configurações atuais do GNOME
 Mudou um atalho, instalou uma extensão ou ajustou algo no Settings? Capture o estado atual:
@@ -151,15 +154,15 @@ Antigravity, Claude Code, Cursor e GitHub Copilot já encontram as regras do pro
 | Nº | Script | O que faz | sudo |
 | --- | --- | --- | --- |
 | 01 | `01-setupEnv.sh` | Cria `~/Dev/{linux_projects,personal_projects,college_projects}` e clona os forks pessoais do GNOME e do tema GRUB | não |
-| 02 | `02-permissions.sh` | Dá permissão de execução a `app.sh`, `scripts/*.sh` e `style/gnome` | não |
-| 03 | `03-update.sh` | Atualiza pacotes do sistema e Flatpaks e remove dependências órfãs | sim |
-| 04 | `04-commonPrograms.sh` | Remove LibreOffice e bloatware do GNOME; habilita o RPM Fusion; instala codecs (ffmpeg completo e grupo multimedia); instala ferramentas de CLI (zsh, git, fzf, btop, bat, eza, zoxide, tldr, curl, wget), apps (GNOME Tweaks, VLC, Tilix, GIMP, OBS Studio), ferramentas de dev, bancos de dados, Podman, Flatpak, Python, Java, Maven e powerline-fonts; garante o Flathub | sim |
+| 02 | `02-permissions.sh` | Dá permissão de execução a `app.sh` e aos scripts de `scripts/`, `style/` e `tools/` | não |
+| 03 | `03-update.sh` | Atualiza pacotes do sistema e Flatpaks, remove dependências órfãs e avisa sobre firmware e reinício | sim |
+| 04 | `04-commonPrograms.sh` | Remove LibreOffice e bloatware do GNOME; habilita o RPM Fusion; instala codecs (ffmpeg completo e grupo multimedia) e o driver de aceleração de vídeo da GPU detectada (AMD ou Intel; NVIDIA só recebe um aviso); instala ferramentas de CLI (zsh, git, fzf, btop, bat, eza, zoxide, tldr, curl, wget, script), apps (GNOME Tweaks, VLC, Tilix, GIMP, OBS Studio), ferramentas de dev, bancos de dados, Podman, Flatpak, Python, Java, Maven e powerline-fonts; garante o Flathub. No apt, só remove o bloatware que não arrastaria outros pacotes | sim |
 | 05 | `05-flatpakPrograms.sh` | Instala ou atualiza os aplicativos Flatpak listados no caso de uso 10 | sim |
 | 06 | `06-externalRepos.sh` | Configura os repositórios oficiais e instala VSCode, Chrome, MongoDB, Docker CE e Docker Desktop; habilita o serviço docker e adiciona o usuário ao grupo `docker` | sim |
 | 07 | `07-gitAndSSH.sh` | Identidade Git global e chave SSH ed25519 | não |
 | 08 | `08-terminalAndShell.sh` | zsh, oh-my-zsh, plugins, Spaceship, Nerd Fonts, shell padrão e `.zshrc` | só para trocar o shell |
-| 09 | `09-devEnvironments.sh` | Dependências do Tauri e toolchain C, Rust, eza, uv, Node.js LTS (fnm), pnpm e Claude Code (instalador nativo oficial) | sim |
-| 10 | `10-themesAndGrub.sh` | Orchis, Tela Circle, Vimix, GRUB oculto, tema GRUB opcional e tema Plymouth (se houver instalador) | sim |
+| 09 | `09-devEnvironments.sh` | Dependências do Tauri e toolchain C, Rust, eza, uv, Node.js LTS (fnm), pnpm autônomo, Claude Code e Antigravity CLI (instaladores oficiais) | sim |
+| 10 | `10-themesAndGrub.sh` | Orchis, Tela Circle, Vimix, GRUB oculto, tema GRUB opcional e tela de boot Plymouth deus_ex | sim |
 | 11 | `11-gnomeSettings.sh` | Extensões do GNOME, configurações do sistema e das extensões, apps do dock e atalhos | só para extensões empacotadas no Fedora |
 
 No Fedora, o pacote `malcontent` (controle parental) **não** é removido, porque o GNOME Settings depende dele; sai apenas a interface `malcontent-control`.
@@ -170,11 +173,12 @@ Transparência sobre tudo o que sai do `$HOME`:
 - **Repositórios**: RPM Fusion; `/etc/yum.repos.d/` (`vscode.repo`, `mongodb-org-8.0.repo`, `docker-ce.repo`); habilitação do repositório `google-chrome`; remoto Flathub habilitado e sem filtro.
 - **Serviços e grupos**: `docker` habilitado e iniciado; seu usuário entra no grupo `docker`.
 - **Usuário**: o shell padrão passa a ser o zsh (`usermod --shell`).
-- **Boot**: `/etc/default/grub` (com backup) e `/boot/grub2/grub.cfg`; tema GRUB em `/boot/grub2/themes` (com `-b`).
+- **Boot**: `/etc/default/grub` (com backup) e `/boot/grub2/grub.cfg`; tema GRUB em `/boot/grub2/themes` (com `-b`); tema Plymouth em `/usr/share/plymouth/themes/deus_ex`, com o initramfs reconstruído.
 - **Configurações do GNOME (dconf do seu usuário)**: as chaves de `style/gnome/dconf/*.ini`. Só as chaves listadas são alteradas; o resto fica como está.
-- **No `$HOME`**: `~/Dev`, `~/.oh-my-zsh`, `~/.zshrc` (com backup), `~/.local/share/fonts/NerdFonts`, temas em `~/.themes` e `~/.local/share/icons`, extensões em `~/.local/share/gnome-shell/extensions`, `~/.config/burn-my-windows`, `~/.cargo`, `~/.rustup`, `~/.local/share/fnm`, Claude Code em `~/.local/bin/claude` e `~/.local/share/claude`, `~/.gitconfig` e `~/.ssh`.
+- **No `$HOME`**: `~/Dev`, `~/.oh-my-zsh`, `~/.zshrc` (com backup), `~/.local/share/fonts/NerdFonts`, temas em `~/.themes` e `~/.local/share/icons`, extensões em `~/.local/share/gnome-shell/extensions`, `~/.config/burn-my-windows`, `~/.cargo`, `~/.rustup`, `~/.local/share/fnm`, `~/.local/share/pnpm`, Claude Code em `~/.local/bin/claude` e `~/.local/share/claude`, Antigravity em `~/.local/bin/agy`, `~/.config/dotfiles/location`, logs em `~/.local/state/dotfiles/logs`, `~/.gitconfig` e `~/.ssh`.
 
 ## Solução de problemas
+- **Algo falhou no `--all` e a saída já rolou da tela**: veja o log indicado no resumo final (`~/.local/state/dotfiles/logs/`).
 - **"[ERRO CRITICO] Falha na execucao do script!"**: a mensagem mostra o arquivo, a linha, o comando e o status. Corrija a causa (rede, repositório fora do ar, pacote renomeado) e rode o módulo de novo.
 - **"No match for argument" no dnf**: um pacote foi renomeado ou removido numa nova versão do Fedora. Confira com `dnf repoquery --available <nome>` e atualize a lista no módulo.
 - **"Do not run this as root"**: rode como seu usuário, sem `sudo` na frente.
@@ -205,7 +209,9 @@ Transparência sobre tudo o que sai do `$HOME`:
 ├── tools/check.sh          # Verificações estáticas do projeto (não é um módulo)
 ├── CLAUDE.md               # Ponto de entrada do Claude Code
 ├── .cursorrules            # Ponto de entrada do Cursor
-└── .github/copilot-instructions.md
+└── .github/
+    ├── copilot-instructions.md  # Ponto de entrada do GitHub Copilot
+    └── workflows/check.yml      # CI: roda o tools/check.sh a cada push
 ```
 
 ## Desenvolvimento
@@ -255,7 +261,7 @@ dnf repoquery --available <pacote>        # o pacote existe?
 dnf install --assumeno <lista de pacotes> # a transação resolve? (sem root)
 dnf remove --assumeno <pacote>            # o que mais seria removido? (sem root)
 ```
-O `tools/check.sh` nunca executa módulos nem usa `sudo`. Para o shellcheck, usa o instalado no sistema ou, na falta dele, um container via podman.
+O `tools/check.sh` nunca executa módulos nem usa `sudo`. O shellcheck roda num container com a versão fixa 0.11.0 (podman ou docker), para dar o mesmo resultado em qualquer máquina; sem container, usa o shellcheck local. O **CI** (`.github/workflows/check.yml`) roda o mesmo script a cada push e pull request no GitHub.
 Módulos que não exigem root (01, 07, 08) podem ser testados com `HOME` apontando para um diretório temporário.
 
 ### Commits

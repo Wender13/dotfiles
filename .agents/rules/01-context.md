@@ -15,7 +15,7 @@ Este projeto é uma ferramenta de automação pessoal (Dotfiles e Setup de Ambie
 
 ## Distribuições Suportadas
 - **Fedora 41+ (alvo principal)**: todo o ramo `dnf` usa sintaxe do dnf5 e é validado no Fedora. Regras específicas em `06-fedora.md`.
-- **Debian/Ubuntu e derivados (`apt`)**: suporte secundário, mantido por compatibilidade e sem validação contínua.
+- **Debian/Ubuntu e derivados (`apt`)**: suporte secundário. Validado por simulação (`apt-get -s`) num container Ubuntu 24.04, não numa instalação real.
 - **Fedora Atomic (Silverblue, Kinoite...)**: não suportado; pacotes ali são aplicados com rpm-ostree, não dnf.
 - **RHEL, CentOS, Rocky, Alma**: não suportados. O ramo `dnf` depende de repositórios exclusivos do Fedora (RPM Fusion, fedora-workstation-repositories), e o `detect_distro` aborta nessas distribuições.
 
@@ -34,7 +34,11 @@ A instalação de software obedece rigorosamente à seguinte ordem de preferênc
 
 * Exceção (toolchains de linguagem): o `fnm` (Node.js) usa o instalador oficial no `$HOME`. No ramo apt, `rustup` e `uv` também usam os instaladores oficiais. Todos rodam sem alterar arquivos do shell, pois o `.zshrc` do repositório já configura o PATH. No Fedora, `rustup`, `uv` e `eza` vêm do dnf (nível 1).
 
+* Exceção (pnpm, decisão do usuário): instalador oficial autônomo em `~/.local/share/pnpm`, independente da versão do Node. O pacote `pnpm` do Fedora foi descartado porque puxa um Node.js de sistema ao lado do fnm.
+
 * Exceção (Claude Code, decisão do usuário): instalado pelo método que o site oficial recomenda, o instalador nativo (`curl -fsSL https://claude.ai/install.sh | bash`, no módulo 09). Ele fica em `~/.local/bin`, se atualiza sozinho em segundo plano e não deve ser trocado pelo repositório dnf/apt nem pelo npm.
+
+* Exceção (Antigravity CLI): instalador oficial (`https://antigravity.google/cli/install.sh`), binário `agy` em `~/.local/bin`, com atualização automática. O aplicativo Desktop ainda não é automatizado (ver backlog).
 
 * Extensões do GNOME: usar o pacote do Fedora (`gnome-shell-extension-*`) quando existir, atualizado pelo dnf; as demais vêm do extensions.gnome.org, na versão compatível com o GNOME Shell instalado. Nunca de clones de repositório.
 

@@ -6,7 +6,7 @@ trigger: always_on
 # Revisão do Projeto e Backlog (Roadmap)
 
 **STATUS DO PROJETO:** **ATIVO**
-Revisão completa em 2026-10-02 no Fedora 44: os módulos foram corrigidos e validados por dry-run do dnf5, shellcheck e testes em `HOME` isolado. As pendências reais estão listadas abaixo; o ramo apt não foi revalidado.
+Revisão completa em 2026-10-02 e pendências resolvidas em 2026-10-03 (Fedora 44): validação por dry-run do dnf5, shellcheck, testes em `HOME` isolado e em pseudo-terminal, containers Fedora 44 e Ubuntu 24.04. Resta apenas o Antigravity Desktop.
 
 ## DIRETRIZ CRÍTICA DE INTERAÇÃO (PARA A IA)
 **AÇÃO DO USUÁRIO REQUERIDA:** Como Inteligência Artificial, você **NÃO DEVE** tentar resolver, implementar ou apagar os itens desta lista de forma autônoma e silenciosa.
@@ -31,43 +31,18 @@ Revisão completa em 2026-10-02 no Fedora 44: os módulos foram corrigidos e val
 - **Revisão de 2026-10-02 (Fedora 44)**: Corrigidos o erro de sintaxe no 01; comandos do dnf4 inexistentes no dnf5 (`groupupdate`, `config-manager --set-enabled`/`--add-repo`); pacotes inexistentes no F44 que abortavam transações inteiras (`gnome-software-plugin-flatpak`, `java-21-openjdk-devel`, `mongodb-compass` no repositório do MongoDB); a remoção do `malcontent`; o `grub2-mkconfig` sobre o stub EFI; o instalador do tema GRUB abrindo TUI no modo headless; a linha do zoxide fundida no `.zshrc`; o menu do `app.sh` corrompido por variável global no laço; o username do GitHub fixo no 01; e o `.env.example` ignorado pelo git.
 - **Checkup de 2026-10-03**: o módulo 09 respeita a versão padrão de Node já escolhida no fnm (antes trocaria a escolha do usuário); `app.sh` com `--help`, recusa de opções desconhecidas e Ctrl+C que interrompe só o módulo em execução; `detect_distro` recusa o Fedora Atomic; limite de 39 caracteres no `GITHUB_USER`; o 07 recria o `.pub` quando só existe a chave privada; o Orchis é instalado só na cor padrão (a usada); novo `tools/check.sh` com as verificações estáticas.
 
+- **Pendências resolvidas em 2026-10-03 (aprovadas pelo usuário)**: tela de boot Plymouth deus_ex (pack_2 de adi1090x/plymouth-themes, clone esparso, também no Ubuntu via alternatives); `changeWallpaper` removido e papel de parede mantido manual (repositório público); ramo apt validado em container Ubuntu 24.04 (remoção de bloatware com simulação, repositórios por distro, EULA das fontes pré-aceita, eza nativo); driver VA-API conforme a GPU; avisos de firmware e reinício no 03; aliases do `.zshrc` corrigidos (`dotf` dinâmico, sem `codef` e NVM, `atualizar` com Flatpak); pnpm autônomo e Antigravity CLI pelos instaladores oficiais sem tocar no `.zshrc`; log de cada `--all`; CI no GitHub Actions; `tools/check.sh` reprodutível (shellcheck fixo, UTF-8, sem `awk` para larguras).
+
 ---
 
 ## A REVISAR / CORRIGIR (To Review & Fix)
-**1. Plymouth sem origem definida**
-- O `10-themesAndGrub.sh` só instala um tema Plymouth se existir `~/Dev/linux_projects/gnome/plymouth/install.sh`, mas nenhum módulo coloca nada nessa pasta. Hoje a etapa é sempre pulada. Decidir o repositório do tema (ou remover a etapa).
-
-**2. Ramo apt sem validação**
-- As correções foram validadas apenas no Fedora 44. No ramo apt continuam pontos frágeis: o codinome `noble` fixo no repositório do MongoDB, a remoção de bloatware com `|| true` sem checagem de dependências reversas e o `cargo install eza` como alternativa.
-
-**3. Papel de parede não versionado**
-- O exportador descarta `picture-uri` porque a imagem fica fora do repositório (`~/.local/share/backgrounds`). O `style/gnome/bin/changeWallpaper` existe, mas nenhum módulo o usa. Decidir se a imagem (ou uma pasta de papéis de parede) entra no repositório.
-
-**4. Aliases desatualizados no `.zshrc`**
-- `dotf` aponta para `~/Dev/linux_projects/dotfiles`, que não é o local atual do repositório.
-- `codef` executa o VSCode Flatpak, mas o VSCode é instalado via repositório RPM/DEB.
-- O bloco do NVM não é mais usado (o Node vem do fnm) e o alias `atualizar` repete `dnf update` e `dnf upgrade` (são o mesmo comando) sem atualizar os Flatpaks.
+*Sem pendências.*
 
 ---
 
 ## A MELHORAR (To Implement / Improve)
-**1. Integração do Antigravity CLI e Desktop**
-- Injetar os binários de acesso do Antigravity (`agy`) nos scripts assim que as fontes oficiais de instalação em lote (Headless) do Desktop forem validadas pelo usuário.
-
-**2. Sistema de Log e Monitoramento**
-- Atualmente o feedback é apenas visual no terminal. Seria ideal ter um arquivo `setup.log` capturando toda a saída (STDOUT e STDERR) do `app.sh` e dos módulos para debug futuro.
-**3. Integração Contínua (CI)**
-- Workflow do GitHub Actions rodando `bash tools/check.sh` a cada push, para pegar erros de sintaxe, shellcheck e convenções antes de chegarem a uma máquina nova.
-
-**4. Aceleração de vídeo por hardware**
-- Instalar o driver de VA-API conforme a GPU detectada (`intel-media-driver`; `mesa-va-drivers-freeworld` para AMD; driver NVIDIA do RPM Fusion), como recomenda o guia de multimídia do RPM Fusion. Depende do hardware de cada máquina.
-
-**5. Firmware e reinício no módulo 03**
-- Atualizar firmware com `fwupdmgr` e avisar quando o sistema precisa reiniciar após a atualização (kernel, glibc).
-
-**6. pnpm independente da versão do Node**
-- Hoje o pnpm é instalado com `npm install -g` dentro da versão do Node ativa no fnm; ao trocar de versão, ele some. Avaliar o instalador oficial do pnpm ou o Corepack.
-
+**1. Antigravity Desktop**
+- A CLI (`agy`) já é instalada pelo módulo 09. O aplicativo Desktop ainda depende de uma fonte oficial de instalação não interativa validada pelo usuário.
 
 ---
 
