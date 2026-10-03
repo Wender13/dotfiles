@@ -10,3 +10,4 @@ burn-my-windows@schneegans.github.com
 compiz-alike-magic-lamp-effect@hermes83.github.com
 lockkeys@vaina.lt
 caffeine@patapon.info                                   gnome-shell-extension-caffeine
+advanced-alt-tab@G-dH.github.com

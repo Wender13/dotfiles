@@ -122,7 +122,7 @@ Via Flathub (atualização automática): Obsidian, Postman, Insomnia, OnlyOffice
 
 ### 11. Restaurar extensões, configurações e atalhos do GNOME (módulo 11)
 Deixa o GNOME igual ao da máquina de onde as configurações foram capturadas, sem abrir o Settings nem o Extension Manager:
-- **Extensões**: instala as listadas em `style/gnome/extensions.txt` (hoje: User Themes, Clipboard History, Vertical App Grid, Blur my Shell, Just Perfection, Burn My Windows, Compiz Magic Lamp, Lock Keys e Caffeine). Usa o pacote do Fedora quando ele existe; as demais vêm do extensions.gnome.org, na versão do seu GNOME Shell.
+- **Extensões**: instala as listadas em `style/gnome/extensions.txt` (hoje: User Themes, Clipboard History, Vertical App Grid, Blur my Shell, Just Perfection, Burn My Windows, Compiz Magic Lamp, Lock Keys, Caffeine e Advanced Alt+Tab Window Switcher). Usa o pacote do Fedora quando ele existe; as demais vêm do extensions.gnome.org, na versão do seu GNOME Shell.
 - **Configurações das extensões**: blur, efeitos de janela (incluindo o perfil do Burn My Windows), painel do Just Perfection, grade de apps e tema do shell.
 - **Sistema**: tema escuro, Orchis-Dark, ícones Tela-circle-dark, cursores Vimix, porcentagem da bateria, teclado ABNT2 (`br`), touchpad, tempo de inatividade, suspensão, luz noturna, lembretes de pausa e limite de tempo de tela.
 - **Dock**: apps fixados (Arquivos, Firefox, Chrome, VSCode, Postman, DBeaver e Terminal).
