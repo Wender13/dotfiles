@@ -19,6 +19,7 @@ Todos os módulos são **idempotentes**: rodar de novo não duplica nada e compl
 - [Estrutura do projeto](#estrutura-do-projeto)
 - [Desenvolvimento](#desenvolvimento)
 - [Trabalhando com agentes de IA](#trabalhando-com-agentes-de-ia)
+- [Licença](#licença)
 
 ## Requisitos
 - Usuário comum com permissão de `sudo`. **Não execute como root nem com `sudo ./app.sh`**: os módulos instalam coisas no `$HOME` e pedem `sudo` só quando precisam (o projeto bloqueia a execução como root).
@@ -284,3 +285,6 @@ As regras do projeto ficam em `.agents/rules/` (formato do Antigravity, carregad
 | GitHub Copilot | `.github/copilot-instructions.md` | Resumo e indicação dos arquivos de regras |
 
 Ao mudar uma regra, edite `.agents/rules/` e, se ela fizer parte do resumo, replique-a nos três pontos de entrada. Itens do `04-backlog.md` só são implementados com aprovação explícita do dono do repositório.
+
+## Licença
+Distribuído sob a licença MIT (veja [LICENSE](LICENSE)). Temas, extensões, fontes e instaladores que os scripts baixam (Orchis, Tela Circle, Vimix, deus_ex, extensões do GNOME, Nerd Fonts etc.) não fazem parte do repositório e seguem as licenças de seus próprios autores.
