@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Caminho para a pasta de papéis de parede do usuário logado
+wallpaper_folder="$HOME/Imagens/My_Wallpapers/"
+
+# Lista de arquivos na pasta de papéis de parede
+wallpapers=($(find "$wallpaper_folder" -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" \)))
+
+# Verifica se existem papéis de parede na pasta
+if [ ${#wallpapers[@]} -eq 0 ]; then
+    exit 1
+fi
+
+# Escolhe um papel de parede aleatório
+selected_wallpaper=${wallpapers[$RANDOM % ${#wallpapers[@]}]}
+
+# Comando para mudar o papel de parede no GNOME
+gsettings set org.gnome.desktop.background picture-uri "file://$selected_wallpaper"
+gsettings set org.gnome.desktop.background picture-uri-dark "file://$selected_wallpaper"

@@ -1,0 +1,27 @@
+# Variáveis de ambiente e segredos
+.env
+*.env
+.env.local
+.env.*
+!.env.example
+
+# Logs do sistema
+*.log
+setup.log
+install.log
+
+# Rascunhos e Pastas de IA
+.claude/
+.aider/
+.aider*
+.ai/scratch/
+scratch/
+
+# Pastas temporárias e de desenvolvimento
+tmp/
+temp/
+*~
+
+# Arquivos do sistema operacional
+.DS_Store
+Thumbs.db
