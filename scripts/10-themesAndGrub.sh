@@ -129,7 +129,28 @@ PLYMOUTH_THEME="deus_ex"
 PLYMOUTH_PACK="pack_2"
 print_header "Configuring Plymouth ($PLYMOUTH_THEME)"
 
-if [ "$(plymouth-set-default-theme)" = "$PLYMOUTH_THEME" ]; then
+# Fedora and Debian ship plymouth-set-default-theme; Ubuntu manages the theme as an alternative
+current_plymouth_theme() {
+    if command -v plymouth-set-default-theme &>/dev/null; then
+        plymouth-set-default-theme
+    else
+        basename "$(dirname "$(readlink -f /usr/share/plymouth/themes/default.plymouth)")"
+    fi
+}
+
+set_plymouth_theme() {
+    if command -v plymouth-set-default-theme &>/dev/null; then
+        # -R rebuilds the initramfs (dracut on Fedora), which is where the splash is loaded from
+        sudo plymouth-set-default-theme -R "$1"
+    else
+        local file="/usr/share/plymouth/themes/$1/$1.plymouth"
+        sudo update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth "$file" 100
+        sudo update-alternatives --set default.plymouth "$file"
+        sudo update-initramfs -u
+    fi
+}
+
+if [ "$(current_plymouth_theme)" = "$PLYMOUTH_THEME" ]; then
     echo -e "${C_YELLOW}Plymouth theme $PLYMOUTH_THEME already active. Skipping.${C_RESET}"
 else
     if [ ! -d "/usr/share/plymouth/themes/$PLYMOUTH_THEME" ]; then
@@ -139,8 +160,7 @@ else
         git -C "$temp_dir/plymouth-themes" sparse-checkout set "$PLYMOUTH_PACK/$PLYMOUTH_THEME"
         sudo cp -r "$temp_dir/plymouth-themes/$PLYMOUTH_PACK/$PLYMOUTH_THEME" /usr/share/plymouth/themes/
     fi
-    # -R rebuilds the initramfs (dracut on Fedora), which is where the splash is loaded from
-    sudo plymouth-set-default-theme -R "$PLYMOUTH_THEME"
+    set_plymouth_theme "$PLYMOUTH_THEME"
 fi
 
 echo -e "${C_GREEN}Themes, Icons, GRUB and Plymouth configured.${C_RESET}"
