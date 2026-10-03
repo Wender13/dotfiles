@@ -1,5 +1,5 @@
 #!/bin/bash
-# MENU_DESC: Dev tools: Rust, uv, Node, Tauri, Claude
+# MENU_DESC: Dev tools: Rust, Node, uv, Tauri, AI CLIs
 # CATEGORY: DEVELOPMENT
 set -euo pipefail
 
@@ -112,9 +112,15 @@ else
 fi
 fnm use default
 
-if ! command -v pnpm &>/dev/null; then
-    echo -e "${C_BLUE}Installing pnpm...${C_RESET}"
-    npm install -g pnpm
+# pnpm: official standalone build, independent of the Node version selected in fnm.
+# Its installer always runs 'pnpm setup', which appends to the shell rc file, so it runs
+# with a throwaway HOME: the repo .zshrc already exports PNPM_HOME and its PATH.
+PNPM_HOME="$HOME/.local/share/pnpm"
+if [ ! -x "$PNPM_HOME/bin/pnpm" ]; then
+    echo -e "${C_BLUE}Installing pnpm (standalone)...${C_RESET}"
+    throwaway_home="$(mktemp -d)"
+    curl -fsSL https://get.pnpm.io/install.sh | env HOME="$throwaway_home" PNPM_HOME="$PNPM_HOME" SHELL=/bin/bash sh -
+    rm -rf "$throwaway_home"
 else
     echo -e "${C_YELLOW}pnpm is already installed.${C_RESET}"
 fi
@@ -132,4 +138,19 @@ else
     echo -e "${C_YELLOW}Claude Code is already installed.${C_RESET}"
 fi
 
-echo -e "${C_GREEN}Dev environments (Rust/Tauri/Python/Node/Claude Code) installed!${C_RESET}"
+# ─── Antigravity CLI ──────────────────────────────────────────────────────────
+# Official installer: the 'agy' binary goes to ~/.local/bin and updates itself. Its last
+# step ('agy install') edits shell profiles, so it runs with a throwaway HOME; the repo
+# .zshrc already has ~/.local/bin on the PATH.
+print_header "Setting up Antigravity CLI"
+if ! command -v agy &>/dev/null; then
+    echo -e "${C_BLUE}Installing Antigravity CLI (official installer)...${C_RESET}"
+    mkdir -p "$HOME/.local/bin"
+    throwaway_home="$(mktemp -d)"
+    curl -fsSL https://antigravity.google/cli/install.sh | env HOME="$throwaway_home" bash -s -- --dir "$HOME/.local/bin"
+    rm -rf "$throwaway_home"
+else
+    echo -e "${C_YELLOW}Antigravity CLI is already installed.${C_RESET}"
+fi
+
+echo -e "${C_GREEN}Dev environments (Rust/Tauri/Python/Node/Claude Code/Antigravity) installed!${C_RESET}"

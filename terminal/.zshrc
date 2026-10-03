@@ -223,6 +223,14 @@ if [ -d "$FNM_PATH" ]; then
     eval "$(fnm env --use-on-cd --shell zsh)"
 fi
 
+# pnpm standalone (installed by scripts/09-devEnvironments.sh); after fnm so it takes
+# precedence over any pnpm installed with npm inside a Node version
+export PNPM_HOME="$HOME/.local/share/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME/bin:"*) ;;
+  *) export PATH="$PNPM_HOME/bin:$PATH" ;;
+esac
+
 [ -f "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
 
 PATH=~/.console-ninja/.bin:$PATH
