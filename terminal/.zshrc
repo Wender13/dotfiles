@@ -192,18 +192,21 @@ SPACESHIP_NODE_COLOR="green"
 
 [ -f "$HOME/.ghcup/env" ] && source "$HOME/.ghcup/env" # ghcup-env
 
+# System packages, then Flatpaks; stops at the first failure
 if command -v dnf &>/dev/null; then
-    alias atualizar="sudo dnf update; sudo dnf upgrade; sudo dnf autoremove"
+    alias atualizar="sudo dnf upgrade --refresh && sudo dnf autoremove && sudo flatpak update"
 else
-    alias atualizar="sudo apt update; sudo apt upgrade; sudo apt autoremove"
+    alias atualizar="sudo apt update && sudo apt full-upgrade && sudo apt autoremove && sudo flatpak update"
 fi
 
 alias venv="source .venv/bin/activate"
-alias codef="flatpak run com.visualstudio.code"
 alias mongo-activate="sudo systemctl start mongod"
 alias mongo-deactivate="sudo systemctl stop mongod"
 alias dev="cd ~/Dev"
-alias dotf="cd ~/Dev/linux_projects/dotfiles"
+
+# Repository location, recorded by scripts/08-terminalAndShell.sh
+[ -r "$HOME/.config/dotfiles/location" ] && DOTFILES_DIR="$(<"$HOME/.config/dotfiles/location")"
+alias dotf='cd "${DOTFILES_DIR:-$HOME}"'
 
 export PATH=$PATH:$HOME/.local/bin
 
@@ -213,10 +216,6 @@ if [ -z "$JAVA_HOME" ]; then
     done
 fi
 [ -n "$JAVA_HOME" ] && export PATH=$JAVA_HOME/bin:$PATH
-
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 
 FNM_PATH="$HOME/.local/share/fnm"
 if [ -d "$FNM_PATH" ]; then

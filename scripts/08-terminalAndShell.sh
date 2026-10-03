@@ -80,4 +80,8 @@ if [ -f "$HOME/.zshrc" ] && ! cmp -s "$DOTFILES_DIR/terminal/.zshrc" "$HOME/.zsh
 fi
 cp "$DOTFILES_DIR/terminal/.zshrc" "$HOME/.zshrc"
 
+# Lets the 'dotf' alias find this repository wherever it was cloned
+mkdir -p "$HOME/.config/dotfiles"
+printf '%s\n' "$DOTFILES_DIR" > "$HOME/.config/dotfiles/location"
+
 echo -e "${C_GREEN}ZSH setup complete.${C_RESET}"
