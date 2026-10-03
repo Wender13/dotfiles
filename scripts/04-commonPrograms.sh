@@ -100,6 +100,36 @@ elif is_dnf; then
     sudo dnf install -y $CLI_TOOLS $GUI_APPS $DEV_TOOLS $DATABASES $CONTAINERS $LANGUAGES $FONTS
 fi
 
+# ─── Hardware video acceleration (VA-API) ─────────────────────────────────────
+print_header "Hardware video acceleration"
+ensure_command lspci pciutils pciutils
+gpus="$(lspci -nn | awk 'tolower($0) ~ /vga|3d|display/')"
+
+if grep -q '\[1002:' <<< "$gpus"; then
+    echo "AMD GPU detected."
+    if is_dnf; then
+        # RPM Fusion build with the codecs Fedora's Mesa leaves out (H.264, H.265).
+        # The Vulkan "freeworld" swap is left out: its version often lags Fedora's Mesa.
+        sudo dnf install -y mesa-va-drivers-freeworld
+    else
+        sudo apt-get install -y mesa-va-drivers
+    fi
+fi
+if grep -q '\[8086:' <<< "$gpus"; then
+    echo "Intel GPU detected."
+    if is_dnf; then
+        sudo dnf install -y intel-media-driver
+    else
+        sudo apt-get install -y intel-media-va-driver-non-free
+    fi
+fi
+if grep -q '\[10de:' <<< "$gpus"; then
+    echo -e "${C_YELLOW}NVIDIA GPU detected: the proprietary driver is not installed automatically (it needs a kernel module signed for Secure Boot). See https://rpmfusion.org/Howto/NVIDIA${C_RESET}"
+fi
+if [ -z "$gpus" ]; then
+    echo -e "${C_YELLOW}No GPU found by lspci. Skipping.${C_RESET}"
+fi
+
 ensure_flathub
 
 echo -e "${C_GREEN}Programs installed.${C_RESET}"
