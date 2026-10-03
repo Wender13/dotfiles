@@ -174,7 +174,14 @@ unset __conda_setup
 # ============================================================
 #  Aliases
 # ============================================================
-alias ll='ls -lah'
+# ll: eza (cores, icones, status do git) quando instalado; senao, o ls
+if command -v eza >/dev/null 2>&1; then
+  alias ll='eza -lah --git --icons --group-directories-first'
+  alias lt='eza --tree --level=2 --icons'   # arvore de 2 niveis
+else
+  alias ll='ls -lah'
+fi
+# bat: cat com destaque de sintaxe (use 'bat arquivo'; o cat continua o original)
 alias ..='cd ..'
 alias ...='cd ../..'
 alias zshconfig='${EDITOR:-nano} ~/.zshrc'
@@ -267,6 +274,12 @@ gprune() {
 
 # Guarda alterações rapidamente:   gsave  /  recupera com: git stash pop
 gsave() { git add -A && git stash push -m "WIP $(date +%F_%H:%M)"; }
+
+# ------------------------------------------------------------
+# zoxide: 'z <parte do nome>' pula para pastas ja visitadas; 'zi' escolhe com fzf.
+# Fica no fim do arquivo, depois do compinit do oh-my-zsh, como pede o zoxide.
+# ------------------------------------------------------------
+command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init zsh)"
 
 # ------------------------------------------------------------
 # Descomente junto com o zmodload no topo para ver o profiling

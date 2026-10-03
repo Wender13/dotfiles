@@ -92,7 +92,9 @@ Se o seu `~/.zshrc` for diferente do versionado, um backup é salvo como `~/.zsh
 O `.zshrc` versionado é o que o dono do repositório usa no dia a dia. Além do tema Spaceship (com usuário, máquina e horário no prompt) e do histórico compartilhado de 50 mil linhas, ele traz:
 - **Sistema**: `update` (atualização completa), `dnfs`/`dnfi`/`dnfr` (buscar, instalar e remover pacotes), `dnfinfo`, `dnfp` (qual pacote fornece um arquivo), `dnfl` (pacotes instalados, com filtro opcional) e `dnfh` (histórico do dnf).
 - **Git**: `gcommit` (add + commit), `gship` (add + commit + push), `gpush`, `gnew` (nova branch), `gsync` (fetch + pull com rebase), `gundo` (desfaz o último commit mantendo as mudanças), `gfix` (emenda o último commit), `glogp` (log em grafo), `gprune` (apaga branches já mescladas) e `gsave` (stash rápido).
-- **Atalhos**: `ll`, `..`, `...`, `zshconfig` (edita o `.zshrc`) e `zshreload`.
+- **Atalhos**: `ll` (listagem com o **eza**: cores, ícones e status do git de cada arquivo; usa o `ls` se o eza não estiver instalado), `lt` (árvore de 2 níveis), `..`, `...`, `zshconfig` (edita o `.zshrc`) e `zshreload`.
+- **Navegação com o zoxide**: `z <parte do nome>` pula para uma pasta já visitada (ex: `z dotfiles`); `zi` escolhe numa lista interativa.
+- **bat**: `bat arquivo` mostra o arquivo com destaque de sintaxe e números de linha; o `cat` continua o original.
 - **Ambientes**: PATH de `~/.local/bin`, fnm, pnpm e cargo; inicialização do conda, se ele existir em `~/anaconda3`.
 
 ### 8. Preparar ambientes de desenvolvimento (módulos 04, 06 e 09)
