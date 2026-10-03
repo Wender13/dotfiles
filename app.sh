@@ -177,10 +177,12 @@ press_enter() {
 # installs in headless mode do not stop midway waiting for it again.
 start_sudo_keepalive() {
     sudo -v || exit 1
+    # Detached from the terminal and the log: otherwise its 'sleep' would keep the output
+    # open (and the log pipe or 'script' waiting) for up to 50s after app.sh ends.
     while kill -0 "$$" 2>/dev/null; do
         sudo -n -v 2>/dev/null
         sleep 50
-    done &
+    done < /dev/null > /dev/null 2>&1 &
     SUDO_KEEPALIVE_PID=$!
     # On exit, stop the loop and drop the cached sudo credentials, so they do not
     # stay valid for whatever runs in this terminal afterwards.
