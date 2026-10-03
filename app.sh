@@ -208,7 +208,30 @@ case "${1:-}" in
 esac
 
 # Modo Headless (Não-interativo)
+LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/logs"
+
 if [[ "${1:-}" == "--all" ]]; then
+    # Record the whole run. Only output is recorded: typed input, such as the sudo
+    # password, never reaches the log.
+    if [ -z "${DOTFILES_LOG:-}" ]; then
+        mkdir -p "$LOG_DIR"
+        chmod 700 "$LOG_DIR"
+        # Keep only the most recent logs (9 old ones plus the new run)
+        mapfile -t old_logs < <(ls -1t "$LOG_DIR"/setup-*.log 2>/dev/null | tail -n +10)
+        [ ${#old_logs[@]} -gt 0 ] && rm -f "${old_logs[@]}"
+        DOTFILES_LOG="$LOG_DIR/setup-$(date +%Y%m%d-%H%M%S).log"
+        export DOTFILES_LOG
+        if command -v script &>/dev/null; then
+            # 'script' keeps a terminal, so progress bars and colors behave as usual.
+            # The re-executed app.sh sees DOTFILES_LOG and runs normally.
+            exec script --quiet --return --command "$(printf '%q' "$(realpath "$0")") --all" "$DOTFILES_LOG"
+        fi
+        # Without 'script' (on Fedora it is util-linux-script, installed by module 04 for
+        # the next runs), tee the output: everything is logged, but programs see a pipe
+        # and drop their progress bars.
+        exec > >(tee -a "$DOTFILES_LOG") 2>&1
+    fi
+
     HEADLESS=1
     echo -e "${C_BLUE}${C_BOLD}>> Rodando em Modo Headless (--all)${C_RESET}"
     start_sudo_keepalive
@@ -223,12 +246,14 @@ if [[ "${1:-}" == "--all" ]]; then
     done
 
     if [ ${#failed[@]} -eq 0 ]; then
-        echo -e "\n${C_GREEN}${C_BOLD}>> Setup Headless concluido sem erros.${C_RESET}\n"
-        exit 0
+        echo -e "\n${C_GREEN}${C_BOLD}>> Setup Headless concluido sem erros.${C_RESET}"
+    else
+        echo -e "\n${C_RED}${C_BOLD}>> Setup Headless concluido com falhas em:${C_RESET}"
+        printf "     - %s\n" "${failed[@]}"
     fi
-    echo -e "\n${C_RED}${C_BOLD}>> Setup Headless concluido com falhas em:${C_RESET}"
-    printf "     - %s\n" "${failed[@]}"
+    [ -n "${DOTFILES_LOG:-}" ] && echo -e "${C_DIM}>> Log completo: $DOTFILES_LOG (leia com: less -R)${C_RESET}"
     echo ""
+    [ ${#failed[@]} -eq 0 ] && exit 0
     exit 1
 fi
 

@@ -88,7 +88,8 @@ elif is_dnf; then
 
     # ─── Categorias de Pacotes (Fedora) ───
     # Fedora ships Flatpak support inside gnome-software (no separate plugin package).
-    CLI_TOOLS="zsh git fzf btop bat eza zoxide tldr curl wget"
+    # util-linux-script provides 'script', which app.sh uses to log --all runs
+    CLI_TOOLS="zsh git fzf btop bat eza zoxide tldr curl wget util-linux-script"
     GUI_APPS="gnome-tweaks vlc tilix gimp obs-studio"
     DEV_TOOLS="make cmake gcc gcc-c++ openssl-devel @development-tools"
     DATABASES="mariadb-server sqlite postgresql-server"
