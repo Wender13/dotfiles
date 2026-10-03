@@ -62,8 +62,11 @@ fi
 # ─── Eza (Modern ls) ──────────────────────────────────────────────────────────
 if ! command -v eza &>/dev/null; then
     echo -e "${C_BLUE}Installing eza...${C_RESET}"
+    # Native package where the distribution has it (Fedora, Ubuntu 24.04+, Debian 13+)
     if is_dnf; then
         sudo dnf install -y eza
+    elif apt-cache show eza &>/dev/null; then
+        sudo apt-get install -y eza
     else
         cargo install --locked eza
     fi

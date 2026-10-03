@@ -18,18 +18,30 @@ if is_apt; then
     wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor | sudo tee /etc/apt/keyrings/packages.microsoft.gpg > /dev/null
     echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | sudo tee /etc/apt/sources.list.d/vscode.list > /dev/null
 
+    # Vendor repositories are split by base distribution. UBUNTU_CODENAME also covers
+    # Ubuntu derivatives (Mint, Pop!_OS), whose own VERSION_CODENAME is not a vendor suite.
+    if [[ " ${ID:-} ${ID_LIKE:-} " == *" ubuntu "* ]]; then
+        apt_base="ubuntu"
+        apt_suite="${UBUNTU_CODENAME:-${VERSION_CODENAME:-}}"
+        mongo_component="multiverse"
+    else
+        apt_base="debian"
+        apt_suite="${VERSION_CODENAME:-}"
+        mongo_component="main"
+    fi
+
     # MongoDB 8.0
     curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | sudo gpg --yes --dearmor -o /usr/share/keyrings/mongodb-server-8.0.gpg
-    echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/8.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list > /dev/null
+    echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/$apt_base $apt_suite/mongodb-org/8.0 $mongo_component" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list > /dev/null
 
     # Google Chrome
     wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --yes --dearmor -o /usr/share/keyrings/google-chrome.gpg
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list > /dev/null
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] https://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list > /dev/null
 
-    # Docker (UBUNTU_CODENAME also covers Ubuntu-based distros such as Mint and Pop)
-    sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+    # Docker
+    sudo curl -fsSL "https://download.docker.com/linux/$apt_base/gpg" -o /etc/apt/keyrings/docker.asc
     sudo chmod a+r /etc/apt/keyrings/docker.asc
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${UBUNTU_CODENAME:-${VERSION_CODENAME:-}} stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/$apt_base $apt_suite stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
     packages=(code mongodb-org mongodb-mongosh google-chrome-stable
         docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin)

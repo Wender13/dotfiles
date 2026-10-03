@@ -10,8 +10,30 @@ detect_distro
 print_header "Installing common programs"
 
 if is_apt; then
-    echo "Removendo LibreOffice e GNOME Bloatware..."
-    sudo apt remove -y --purge 'libreoffice*' yelp gnome-tour malcontent malcontent-gui gnome-contacts simple-scan || true
+    print_header "Removing LibreOffice and GNOME bloatware"
+    # On Ubuntu, metapackages such as ubuntu-desktop depend on some of these. Removing one
+    # would take the metapackage along, and a later 'apt autoremove' would strip the desktop.
+    # So each installed package is simulated first and kept if apt would remove anything
+    # beyond this list.
+    mapfile -t bloatware < <(dpkg-query -W -f='${Package} ${db:Status-Status}\n' \
+        'libreoffice*' yelp gnome-tour malcontent malcontent-gui gnome-contacts simple-scan 2>/dev/null \
+        | awk '$2 == "installed" { print $1 }')
+    removable=()
+    for pkg in "${bloatware[@]}"; do
+        # grep exits 1 when nothing beyond the list would be removed, which is the good case
+        extra="$(apt-get -s remove "$pkg" | awk '/^Remv /{ print $2 }' \
+            | grep -vxF -f <(printf '%s\n' "${bloatware[@]}") || true)"
+        if [ -z "$extra" ]; then
+            removable+=("$pkg")
+        else
+            echo -e "${C_YELLOW}Keeping $pkg: removing it would also remove $(echo "$extra" | tr '\n' ' ')${C_RESET}"
+        fi
+    done
+    if [ ${#removable[@]} -gt 0 ]; then
+        sudo apt-get remove -y --purge "${removable[@]}"
+    else
+        echo -e "${C_YELLOW}Nothing to remove.${C_RESET}"
+    fi
 
     sudo apt update
 
@@ -21,8 +43,16 @@ if is_apt; then
     DEV_TOOLS="make cmake build-essential libssl-dev"
     DATABASES="mariadb-server sqlite3 postgresql"
     CONTAINERS="podman flatpak gnome-software-plugin-flatpak"
-    LANGUAGES="python3 python3-pip default-jdk openjdk-21-jdk maven"
-    CODECS="ubuntu-restricted-extras libavcodec-extra fonts-powerline"
+    LANGUAGES="python3 python3-pip default-jdk maven"
+    CODECS="libavcodec-extra fonts-powerline"
+    # ubuntu-restricted-extras only exists on Ubuntu and its derivatives. It pulls the
+    # Microsoft core fonts installer, whose EULA dialog would block an unattended run,
+    # so the acceptance is preseeded.
+    if [[ " ${ID:-} ${ID_LIKE:-} " == *" ubuntu "* ]]; then
+        echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" \
+            | sudo debconf-set-selections
+        CODECS+=" ubuntu-restricted-extras"
+    fi
 
     # shellcheck disable=SC2086  # word splitting is intentional: one transaction
     sudo apt install -y $CLI_TOOLS $GUI_APPS $DEV_TOOLS $DATABASES $CONTAINERS $LANGUAGES $CODECS
