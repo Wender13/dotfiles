@@ -7,6 +7,9 @@
 # .agents/rules/03-standards.md (dnf repoquery / dnf install --assumeno).
 set -uo pipefail   # no -e: every check runs and all failures are reported
 
+# The menu and the emoji check count characters, not bytes: force a UTF-8 locale
+export LC_ALL=C.UTF-8
+
 ROOT="$(realpath "$(dirname "$(realpath "$0")")/..")"
 cd "$ROOT" || exit 1
 
@@ -30,13 +33,20 @@ fi
 
 echo "Lint (shellcheck, warnings and errors)"
 SC_ARGS=(-x -S warning -e SC1091 -e SC2034)
-if command -v shellcheck &>/dev/null; then
-    shellcheck "${SC_ARGS[@]}" "${SHELL_FILES[@]}" && ok "shellcheck" || fail "shellcheck (see output above)"
-elif command -v podman &>/dev/null; then
-    podman run --rm -v "$ROOT:/mnt:ro,Z" -w /mnt docker.io/koalaman/shellcheck:stable \
-        "${SC_ARGS[@]}" "${SHELL_FILES[@]}" && ok "shellcheck (podman)" || fail "shellcheck (see output above)"
+# Pinned image: shellcheck versions report different warnings, so local runs and CI use the same one
+SC_IMAGE="docker.io/koalaman/shellcheck:v0.11.0"
+container_tool=""
+command -v podman &>/dev/null && container_tool=podman
+[ -z "$container_tool" ] && command -v docker &>/dev/null && container_tool=docker
+if [ -n "$container_tool" ]; then
+    "$container_tool" run --rm -v "$ROOT:/mnt:ro,Z" -w /mnt "$SC_IMAGE" "${SC_ARGS[@]}" "${SHELL_FILES[@]}" \
+        && ok "shellcheck 0.11.0 ($container_tool)" || fail "shellcheck (see output above)"
+elif command -v shellcheck &>/dev/null; then
+    shellcheck "${SC_ARGS[@]}" "${SHELL_FILES[@]}" \
+        && ok "shellcheck $(shellcheck --version | sed -n 's/^version: //p') (local; CI uses 0.11.0)" \
+        || fail "shellcheck (see output above)"
 else
-    echo "  skip  shellcheck not installed and podman not available"
+    echo "  skip  no podman, docker or shellcheck available"
 fi
 
 echo "Module conventions"
@@ -59,7 +69,8 @@ done
 echo "Menu rendering"
 widths=$(printf 'q\n' | TERM=dumb ./app.sh 2>/dev/null \
     | sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' | grep -E '^[│╭╰├]' \
-    | awk '{ print length($0) }' | sort -u | tr '\n' ' ')
+    | while IFS= read -r line; do echo "${#line}"; done | sort -u | tr '\n' ' ')
+# (bash counts characters; mawk, the default awk on Debian/Ubuntu, would count bytes)
 if [ "$widths" = "80 " ]; then
     ok "every menu line is 80 columns wide"
 else
