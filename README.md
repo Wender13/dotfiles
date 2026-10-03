@@ -199,7 +199,7 @@ Transparência sobre tudo o que sai do `$HOME`:
 │   ├── dconf/*.ini         # Configurações do sistema, extensões, dock e atalhos (módulo 11)
 │   ├── extensions.txt      # Extensões a instalar (UUID e pacote Fedora, se houver)
 │   ├── burn-my-windows/    # Perfis de efeito da extensão Burn My Windows
-│   └── bin/                # export-gnome-settings.sh (captura) e changeWallpaper
+│   └── bin/                # export-gnome-settings.sh (captura das configurações)
 ├── .env.example            # Modelo do .env (o .env real é ignorado pelo git)
 ├── .agents/rules/          # Regras para agentes de IA (fonte de verdade)
 ├── tools/check.sh          # Verificações estáticas do projeto (não é um módulo)
@@ -207,7 +207,6 @@ Transparência sobre tudo o que sai do `$HOME`:
 ├── .cursorrules            # Ponto de entrada do Cursor
 └── .github/copilot-instructions.md
 ```
-`style/gnome/bin/changeWallpaper` ainda não é usado por nenhum módulo (ver backlog).
 
 ## Desenvolvimento
 

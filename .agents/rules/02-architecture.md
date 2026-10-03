@@ -32,7 +32,6 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
   - `extensions.txt`: extensões ativas, uma por linha (`UUID [pacote Fedora]`).
   - `burn-my-windows/profiles/`: perfis de efeito referenciados pelas configurações da extensão.
   - `bin/export-gnome-settings.sh`: gera os três itens acima a partir do GNOME em execução, filtrando estado da máquina (timestamps, tamanhos de janela) e caminhos de papel de parede, e descartando chaves e valores com cara de segredo ou e-mail (lista o que descartou e aborta se algo suspeito passar). Não edite os `.ini` à mão quando der para reexportar.
-  - `bin/changeWallpaper`: troca o papel de parede aleatoriamente; ainda não é usado por nenhum módulo (ver backlog).
 - `tools/check.sh`: verificações estáticas do projeto (sintaxe, shellcheck, convenções dos módulos, largura do menu, dados pessoais, emojis). Fica fora de `scripts/` para não virar item do menu.
 - `terminal/.zshrc`: copiado para `~/.zshrc` pelo módulo 08, com backup quando o arquivo existente for diferente.
 - `.env` (ignorado pelo git) e `.env.example` (modelo versionado): configurações pessoais.
@@ -41,7 +40,7 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
 | Módulo | Responsabilidade | sudo | `.env` |
 | --- | --- | --- | --- |
 | `01-setupEnv.sh` | Cria a estrutura `~/Dev` e clona os forks pessoais do GNOME e do tema GRUB | não | `GITHUB_USER` |
-| `02-permissions.sh` | Permissão de execução em `app.sh`, `scripts/` e `style/gnome` | não | - |
+| `02-permissions.sh` | Permissão de execução em `app.sh` e nos scripts de `scripts/`, `style/` e `tools/` | não | - |
 | `03-update.sh` | Atualiza sistema e Flatpaks | sim | - |
 | `04-commonPrograms.sh` | Remove bloatware, habilita RPM Fusion, codecs e pacotes base | sim | - |
 | `05-flatpakPrograms.sh` | Aplicativos via Flathub | sim | - |
