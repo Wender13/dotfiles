@@ -1,0 +1,24 @@
+name: check
+
+on:
+  push:
+  pull_request:
+
+# The job only reads the repository
+permissions:
+  contents: read
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-24.04
+    steps:
+      # Pinned to the v7.0.1 commit, so a moved tag cannot change what runs here
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Install zsh (for zsh -n on terminal/.zshrc)
+        run: sudo apt-get update && sudo apt-get install -y zsh
+
+      # Syntax, shellcheck (pinned container), module conventions, menu width,
+      # personal data and emojis. Never runs a module.
+      - name: Static checks
+        run: bash tools/check.sh
