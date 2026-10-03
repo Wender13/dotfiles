@@ -79,7 +79,7 @@ Rode o mesmo módulo (ou o `--all`) de novo. O que já foi feito é detectado e 
 
 ### 5. Manter o sistema atualizado
 - Módulo `03`: `dnf upgrade --refresh`, `dnf autoremove` e `flatpak update`. No fim, **avisa** se há atualização de firmware (`fwupdmgr`; aplicar fica a seu critério com `fwupdmgr update`) e se é preciso reiniciar (kernel, glibc etc.).
-- No dia a dia, o alias `atualizar` do `.zshrc` faz o mesmo para pacotes e Flatpaks, parando no primeiro erro.
+- No dia a dia, a função `update` do `.zshrc` atualiza pacotes e Flatpaks, limpa o cache e os Flatpaks sem uso e avisa se é preciso reiniciar.
 
 ### 6. Configurar identidade Git e chave SSH (módulo 07)
 Define nome, e-mail, branch padrão `main` e cores, e gera uma chave `ed25519` em `~/.ssh/id_ed25519` se ainda não existir nenhuma chave pública. Ao final, a chave pública é exibida para você cadastrar no GitHub/GitLab.
@@ -89,14 +89,18 @@ A chave é gerada **sem passphrase**, para não travar o modo automático. Se qu
 Instala zsh, oh-my-zsh, os plugins (k, autosuggestions, syntax-highlighting, completions), o tema Spaceship e as Nerd Fonts JetBrainsMono e FiraCode. Também define o zsh como shell padrão e copia `terminal/.zshrc` para `~/.zshrc`.
 Se o seu `~/.zshrc` for diferente do versionado, um backup é salvo como `~/.zshrc.bak.<data>` antes da cópia. Para versionar mudanças pessoais, edite `terminal/.zshrc` no repositório e rode o 08 de novo.
 
-Aliases incluídos: `atualizar` (sistema e Flatpaks), `dotf` (vai para este repositório, onde quer que ele tenha sido clonado: o 08 registra o caminho em `~/.config/dotfiles/location`), `dev` (`~/Dev`), `venv` (ativa o `.venv` da pasta atual) e `mongo-activate`/`mongo-deactivate` (liga e desliga o MongoDB).
+O `.zshrc` versionado é o que o dono do repositório usa no dia a dia. Além do tema Spaceship (com usuário, máquina e horário no prompt) e do histórico compartilhado de 50 mil linhas, ele traz:
+- **Sistema**: `update` (atualização completa), `dnfs`/`dnfi`/`dnfr` (buscar, instalar e remover pacotes), `dnfinfo`, `dnfp` (qual pacote fornece um arquivo), `dnfl` (pacotes instalados, com filtro opcional) e `dnfh` (histórico do dnf).
+- **Git**: `gcommit` (add + commit), `gship` (add + commit + push), `gpush`, `gnew` (nova branch), `gsync` (fetch + pull com rebase), `gundo` (desfaz o último commit mantendo as mudanças), `gfix` (emenda o último commit), `glogp` (log em grafo), `gprune` (apaga branches já mescladas) e `gsave` (stash rápido).
+- **Atalhos**: `ll`, `..`, `...`, `zshconfig` (edita o `.zshrc`) e `zshreload`.
+- **Ambientes**: PATH de `~/.local/bin`, fnm, pnpm e cargo; `JAVA_HOME` automático; inicialização do conda, se ele existir em `~/anaconda3`.
 
 ### 8. Preparar ambientes de desenvolvimento (módulos 04, 06 e 09)
 - **04**: compiladores, cmake, Python, Java (25 e latest), Maven, MariaDB, SQLite, PostgreSQL e Podman.
 - **06**: VSCode, Google Chrome, MongoDB 8.0 (com mongosh), Docker Engine (com buildx e compose), todos de repositórios oficiais e atualizados pelo `dnf upgrade`, e o Docker Desktop.
 - **09**: dependências do Tauri, Rust (rustup/cargo), eza, uv (Python), Node.js LTS (fnm; uma versão padrão que você já tenha escolhido é mantida), **pnpm** autônomo (instalador oficial, em `~/.local/share/pnpm`, independente da versão do Node) e duas CLIs de IA pelos instaladores oficiais, ambas em `~/.local/bin` e com atualização automática: **Claude Code** (`claude`) e **Antigravity** (`agy`). O que já estiver instalado é pulado. Os instaladores do pnpm e do Antigravity tentam editar o perfil do shell; eles rodam com um `HOME` temporário para não mexer no `~/.zshrc` gerenciado pelo repositório.
 
-Os bancos de dados são apenas instalados; inicialização e serviços ficam a seu critério (ex: `sudo postgresql-setup --initdb`, `sudo systemctl enable --now mariadb`, ou os aliases `mongo-activate`/`mongo-deactivate` do `.zshrc`).
+Os bancos de dados são apenas instalados; inicialização e serviços ficam a seu critério (ex: `sudo postgresql-setup --initdb`, `sudo systemctl enable --now mariadb`, `sudo systemctl start mongod`).
 
 ### 9. Personalizar o visual e o boot (módulos 01 e 10)
 1. Defina `GITHUB_USER` e `GRUB_THEME_ARGS` no `.env`.
@@ -175,7 +179,7 @@ Transparência sobre tudo o que sai do `$HOME`:
 - **Usuário**: o shell padrão passa a ser o zsh (`usermod --shell`).
 - **Boot**: `/etc/default/grub` (com backup) e `/boot/grub2/grub.cfg`; tema GRUB em `/boot/grub2/themes` (com `-b`); tema Plymouth em `/usr/share/plymouth/themes/deus_ex`, com o initramfs reconstruído.
 - **Configurações do GNOME (dconf do seu usuário)**: as chaves de `style/gnome/dconf/*.ini`. Só as chaves listadas são alteradas; o resto fica como está.
-- **No `$HOME`**: `~/Dev`, `~/.oh-my-zsh`, `~/.zshrc` (com backup), `~/.local/share/fonts/NerdFonts`, temas em `~/.themes` e `~/.local/share/icons`, extensões em `~/.local/share/gnome-shell/extensions`, `~/.config/burn-my-windows`, `~/.cargo`, `~/.rustup`, `~/.local/share/fnm`, `~/.local/share/pnpm`, Claude Code em `~/.local/bin/claude` e `~/.local/share/claude`, Antigravity em `~/.local/bin/agy`, `~/.config/dotfiles/location`, logs em `~/.local/state/dotfiles/logs`, `~/.gitconfig` e `~/.ssh`.
+- **No `$HOME`**: `~/Dev`, `~/.oh-my-zsh`, `~/.zshrc` (com backup), `~/.local/share/fonts/NerdFonts`, temas em `~/.themes` e `~/.local/share/icons`, extensões em `~/.local/share/gnome-shell/extensions`, `~/.config/burn-my-windows`, `~/.cargo`, `~/.rustup`, `~/.local/share/fnm`, `~/.local/share/pnpm`, Claude Code em `~/.local/bin/claude` e `~/.local/share/claude`, Antigravity em `~/.local/bin/agy`, logs em `~/.local/state/dotfiles/logs`, `~/.gitconfig` e `~/.ssh`.
 
 ## Solução de problemas
 - **Algo falhou no `--all` e a saída já rolou da tela**: veja o log indicado no resumo final (`~/.local/state/dotfiles/logs/`).

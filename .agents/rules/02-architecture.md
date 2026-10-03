@@ -73,7 +73,7 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
 ## Dependências entre Módulos
 - O 10 instala o tema GRUB a partir do repositório clonado pelo 01.
 - O 05 precisa do `flatpak`, instalado pelo 04 (o `ensure_command` cobre a execução isolada).
-- O `.zshrc` copiado pelo 08 usa ferramentas do 04 (zoxide) e do 09 (cargo, fnm), carregadas apenas se existirem.
+- O `.zshrc` copiado pelo 08 é o do uso diário do dono do repositório. Ele coloca no PATH o que o 09 instala (fnm, pnpm em `$PNPM_HOME/bin`, cargo) e carrega cada ferramenta só se ela existir. Mudanças nele devem partir do `~/.zshrc` em uso, sem caminhos `/home/<usuário>`.
 - O 11 aplica os temas instalados pelo 10 (`Orchis-Dark`, `Tela-circle-dark`, `Vimix-cursors`) e fixa no dock apps instalados pelo 05 e pelo 06. Se mudar um tema no 10, reexporte as configurações.
 - O log do `--all` usa o `script`, que no Fedora vem do pacote `util-linux-script`, instalado pelo 04 (na primeira execução numa máquina nova, o log é feito com `tee`).
 - O 11 precisa rodar dentro da sessão gráfica do GNOME (usa o D-Bus da sessão). Extensões novas só carregam depois de logout e login (Wayland).
