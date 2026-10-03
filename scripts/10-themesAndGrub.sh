@@ -12,11 +12,12 @@ print_header "Installing Theme Dependencies"
 
 # sassc compiles the Orchis CSS. inkscape/optipng are only used by the theme
 # authors' asset render scripts, not by install.sh (Inkscape itself is a Flatpak).
+# The plymouth packages provide plymouth-set-default-theme and the script plugin.
 if is_apt; then
     sudo apt update
-    sudo apt install -y sassc plymouth-themes
+    sudo apt install -y sassc plymouth plymouth-themes
 elif is_dnf; then
-    sudo dnf install -y sassc plymouth-plugin-script
+    sudo dnf install -y sassc plymouth plymouth-plugin-script
 fi
 
 ensure_command git git git
@@ -122,15 +123,24 @@ else
 fi
 
 # ─── Plymouth Configuration ───────────────────────────────────────────────────
-print_header "Configuring Plymouth"
+# Boot splash "deus_ex" from adi1090x/plymouth-themes (pack_2). It is a script theme,
+# hence the plymouth script plugin installed above.
+PLYMOUTH_THEME="deus_ex"
+PLYMOUTH_PACK="pack_2"
+print_header "Configuring Plymouth ($PLYMOUTH_THEME)"
 
-PLYMOUTH_DIR="$HOME/Dev/linux_projects/gnome/plymouth"
-# Caso haja um script de instalação do plymouth nessa pasta, podemos rodar aqui.
-if [ -f "$PLYMOUTH_DIR/install.sh" ]; then
-    echo "Installing custom Plymouth theme..."
-    (cd "$PLYMOUTH_DIR" && sudo ./install.sh)
+if [ "$(plymouth-set-default-theme)" = "$PLYMOUTH_THEME" ]; then
+    echo -e "${C_YELLOW}Plymouth theme $PLYMOUTH_THEME already active. Skipping.${C_RESET}"
 else
-    echo -e "${C_YELLOW}No custom Plymouth install script found at $PLYMOUTH_DIR. Skipping.${C_RESET}"
+    if [ ! -d "/usr/share/plymouth/themes/$PLYMOUTH_THEME" ]; then
+        # Sparse clone: only this theme's folder is downloaded (a few MB, not the whole collection)
+        git clone --depth=1 --filter=blob:none --sparse \
+            https://github.com/adi1090x/plymouth-themes.git "$temp_dir/plymouth-themes"
+        git -C "$temp_dir/plymouth-themes" sparse-checkout set "$PLYMOUTH_PACK/$PLYMOUTH_THEME"
+        sudo cp -r "$temp_dir/plymouth-themes/$PLYMOUTH_PACK/$PLYMOUTH_THEME" /usr/share/plymouth/themes/
+    fi
+    # -R rebuilds the initramfs (dracut on Fedora), which is where the splash is loaded from
+    sudo plymouth-set-default-theme -R "$PLYMOUTH_THEME"
 fi
 
 echo -e "${C_GREEN}Themes, Icons, GRUB and Plymouth configured.${C_RESET}"
