@@ -114,6 +114,8 @@ show_menu() {
     _empty
     _center "$title_col"  "${#title}"
     _center "$info_col"   "${#info_plain}"
+    local policy_plain="versoes -> $POLICY_LABEL"
+    _center "${C_DIM}${policy_plain}${C_RESET}" "${#policy_plain}"
     _empty
 
     # Consecutive modules with the same CATEGORY share one section header
@@ -191,28 +193,75 @@ start_sudo_keepalive() {
 
 usage() {
     cat <<EOF
-Usage: ./app.sh [--all | --help]
+Usage: ./app.sh [--all] [--ask | --update | --keep]
+       ./app.sh --help
   (no option)  Interactive menu
   --all        Run every module in order, without the menu (headless)
+
+  What to do when something is already installed and a newer version exists:
+  --ask        Show "current -> new", warn and ask (default of the menu)
+  --update     Update without asking
+  --keep       Never touch what is installed; only install what is missing
+               (default of --all)
+  UPDATE_POLICY=ask|update|keep in .env changes the default; a flag overrides it.
+
   --help       Show this help
 EOF
 }
 
-# ─── Main loop ────────────────────────────────────────────────────────────────
-case "${1:-}" in
-    ""|--all) ;;
-    -h|--help) usage; exit 0 ;;
+# ─── Arguments ────────────────────────────────────────────────────────────────
+MODE="menu"
+POLICY_FLAG=""
+for arg in "$@"; do
+    case "$arg" in
+        --all) MODE="all" ;;
+        --ask|--update|--keep)
+            if [ -n "$POLICY_FLAG" ] && [ "$POLICY_FLAG" != "${arg#--}" ]; then
+                printf "${C_RED}Choose only one of --ask, --update and --keep.${C_RESET}\n" >&2
+                exit 2
+            fi
+            POLICY_FLAG="${arg#--}"
+            ;;
+        -h|--help) usage; exit 0 ;;
+        *)
+            printf "${C_RED}Unknown option: %s${C_RESET}\n" "$arg" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+done
+
+# Update policy: flag > UPDATE_POLICY in .env > default (menu: ask, --all: keep)
+ENV_FILE="$(dirname "$(realpath "$0")")/.env"
+env_policy=""
+if [ -f "$ENV_FILE" ]; then
+    env_policy="$(bash -c 'source "$1" > /dev/null 2>&1; printf "%s" "${UPDATE_POLICY:-}"' _ "$ENV_FILE")"
+fi
+if [ -n "$POLICY_FLAG" ]; then
+    UPDATE_POLICY="$POLICY_FLAG"
+elif [ -n "$env_policy" ]; then
+    UPDATE_POLICY="$env_policy"
+elif [ "$MODE" = "all" ]; then
+    UPDATE_POLICY="keep"
+else
+    UPDATE_POLICY="ask"
+fi
+case "$UPDATE_POLICY" in
+    ask)    POLICY_LABEL="ask: pergunta antes de atualizar o que ja esta instalado" ;;
+    update) POLICY_LABEL="update: atualiza o que tiver versao mais nova" ;;
+    keep)   POLICY_LABEL="keep: mantem o que ja esta instalado" ;;
     *)
-        printf "${C_RED}Unknown option: %s${C_RESET}\n" "$1" >&2
-        usage >&2
+        printf "${C_RED}Invalid UPDATE_POLICY '%s' in .env (use ask, update or keep).${C_RESET}\n" "$UPDATE_POLICY" >&2
         exit 2
         ;;
 esac
+# Read by scripts/lib.sh in every module
+export DOTFILES_UPDATE_POLICY="$UPDATE_POLICY"
 
 # Modo Headless (Não-interativo)
 LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/logs"
 
-if [[ "${1:-}" == "--all" ]]; then
+if [ "$MODE" = "all" ]; then
     # Record the whole run. Only output is recorded: typed input, such as the sudo
     # password, never reaches the log.
     if [ -z "${DOTFILES_LOG:-}" ]; then
@@ -226,7 +275,7 @@ if [[ "${1:-}" == "--all" ]]; then
         if command -v script &>/dev/null; then
             # 'script' keeps a terminal, so progress bars and colors behave as usual.
             # The re-executed app.sh sees DOTFILES_LOG and runs normally.
-            exec script --quiet --return --command "$(printf '%q' "$(realpath "$0")") --all" "$DOTFILES_LOG"
+            exec script --quiet --return --command "$(printf '%q ' "$(realpath "$0")" "$@")" "$DOTFILES_LOG"
         fi
         # Without 'script' (on Fedora it is util-linux-script, installed by module 04 for
         # the next runs), tee the output: everything is logged, but programs see a pipe
@@ -236,6 +285,7 @@ if [[ "${1:-}" == "--all" ]]; then
 
     HEADLESS=1
     echo -e "${C_BLUE}${C_BOLD}>> Rodando em Modo Headless (--all)${C_RESET}"
+    echo -e "${C_DIM}>> Versoes: $POLICY_LABEL${C_RESET}"
     start_sudo_keepalive
 
     failed=()

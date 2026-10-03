@@ -9,6 +9,10 @@ detect_distro
 
 print_header "Installing common programs"
 
+# Everything this module installs; installed ones with a newer version are offered at the
+# end in a single question, following the update policy (see lib.sh)
+OFFER=()
+
 if is_apt; then
     print_header "Removing LibreOffice and GNOME bloatware"
     # On Ubuntu, metapackages such as ubuntu-desktop depend on some of these. Removing one
@@ -54,8 +58,9 @@ if is_apt; then
         CODECS+=" ubuntu-restricted-extras"
     fi
 
-    # shellcheck disable=SC2086  # word splitting is intentional: one transaction
-    sudo apt install -y $CLI_TOOLS $GUI_APPS $DEV_TOOLS $DATABASES $CONTAINERS $LANGUAGES $CODECS
+    read -r -a PACKAGES <<< "$CLI_TOOLS $GUI_APPS $DEV_TOOLS $DATABASES $CONTAINERS $LANGUAGES $CODECS"
+    install_missing_packages "${PACKAGES[@]}"
+    OFFER+=("${PACKAGES[@]}")
 
 elif is_dnf; then
     print_header "Removing LibreOffice and GNOME bloatware"
@@ -82,6 +87,7 @@ elif is_dnf; then
     print_header "Installing multimedia codecs"
     # RPM Fusion howto: the full ffmpeg replaces ffmpeg-free and the libav*-free libraries.
     sudo dnf install -y --allowerasing ffmpeg
+    OFFER+=(ffmpeg)
     sudo dnf install -y @multimedia --setopt=install_weak_deps=False --exclude=PackageKit-gstreamer-plugin
 
     print_header "Installing DNF Packages"
@@ -97,8 +103,9 @@ elif is_dnf; then
     LANGUAGES="python3 python3-pip java-25-openjdk-devel java-latest-openjdk-devel maven"
     FONTS="powerline-fonts"
 
-    # shellcheck disable=SC2086  # word splitting is intentional: one transaction
-    sudo dnf install -y $CLI_TOOLS $GUI_APPS $DEV_TOOLS $DATABASES $CONTAINERS $LANGUAGES $FONTS
+    read -r -a PACKAGES <<< "$CLI_TOOLS $GUI_APPS $DEV_TOOLS $DATABASES $CONTAINERS $LANGUAGES $FONTS"
+    install_missing_packages "${PACKAGES[@]}"
+    OFFER+=("${PACKAGES[@]}")
 fi
 
 # ─── Hardware video acceleration (VA-API) ─────────────────────────────────────
@@ -111,17 +118,21 @@ if grep -q '\[1002:' <<< "$gpus"; then
     if is_dnf; then
         # RPM Fusion build with the codecs Fedora's Mesa leaves out (H.264, H.265).
         # The Vulkan "freeworld" swap is left out: its version often lags Fedora's Mesa.
-        sudo dnf install -y mesa-va-drivers-freeworld
+        install_missing_packages mesa-va-drivers-freeworld
+        OFFER+=(mesa-va-drivers-freeworld)
     else
-        sudo apt-get install -y mesa-va-drivers
+        install_missing_packages mesa-va-drivers
+        OFFER+=(mesa-va-drivers)
     fi
 fi
 if grep -q '\[8086:' <<< "$gpus"; then
     echo "Intel GPU detected."
     if is_dnf; then
-        sudo dnf install -y intel-media-driver
+        install_missing_packages intel-media-driver
+        OFFER+=(intel-media-driver)
     else
-        sudo apt-get install -y intel-media-va-driver-non-free
+        install_missing_packages intel-media-va-driver-non-free
+        OFFER+=(intel-media-va-driver-non-free)
     fi
 fi
 if grep -q '\[10de:' <<< "$gpus"; then
@@ -130,6 +141,8 @@ fi
 if [ -z "$gpus" ]; then
     echo -e "${C_YELLOW}No GPU found by lspci. Skipping.${C_RESET}"
 fi
+
+offer_package_upgrades "04 - programas comuns" "${OFFER[@]}"
 
 ensure_flathub
 

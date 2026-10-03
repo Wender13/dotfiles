@@ -15,9 +15,9 @@ print_header "Installing Theme Dependencies"
 # The plymouth packages provide plymouth-set-default-theme and the script plugin.
 if is_apt; then
     sudo apt update
-    sudo apt install -y sassc plymouth plymouth-themes
+    install_packages "10 - dependencias de temas" sassc plymouth plymouth-themes
 elif is_dnf; then
-    sudo dnf install -y sassc plymouth plymouth-plugin-script
+    install_packages "10 - dependencias de temas" sassc plymouth plymouth-plugin-script
 fi
 
 ensure_command git git git
@@ -36,13 +36,22 @@ theme_installed() {
     return 1
 }
 
-# $1: name, $2: repository URL, remaining arguments go to the repository's install.sh
+# $1: name, $2: repository URL, remaining arguments go to the repository's install.sh.
+# The installed commit is recorded, so later runs can tell whether upstream has news.
 install_from_repo() {
     local name=$1 repo=$2
     shift 2
     echo "Downloading $name..."
+    rm -rf "${temp_dir:?}/$name"
     git clone --depth=1 "$repo" "$temp_dir/$name"
     (cd "$temp_dir/$name" && ./install.sh "$@")
+    record_version "$name" "$(git -C "$temp_dir/$name" rev-parse --short=12 HEAD)"
+}
+
+# Latest commit of a repository (12 characters, as recorded), or nothing if unreachable.
+# The empty result is handled by the callers ("could not check"), hence the || true.
+remote_head() {
+    git ls-remote "$1" HEAD 2> /dev/null | cut -c1-12 || true
 }
 
 THEME_DIRS=("$HOME/.themes" "$HOME/.local/share/themes" "${XDG_DATA_HOME:-$HOME/.local/share}/themes")
@@ -53,24 +62,39 @@ ICON_DIRS=("$HOME/.local/share/icons" "$HOME/.icons")
 # which module 11 applies.
 print_header "Installing Orchis Theme, Tela Circle Icons & Vimix Cursors"
 
-# Default color only (Orchis, Orchis-Dark, Orchis-Light and their compact/hdpi sizes)
-if theme_installed Orchis "${THEME_DIRS[@]}"; then
-    echo -e "${C_YELLOW}Orchis theme already installed. Skipping.${C_RESET}"
-else
-    install_from_repo Orchis-theme https://github.com/vinceliuice/Orchis-theme.git
-fi
-
-# Standard color only: provides Tela-circle, Tela-circle-dark and Tela-circle-light
-if theme_installed Tela-circle "${ICON_DIRS[@]}"; then
-    echo -e "${C_YELLOW}Tela Circle icons already installed. Skipping.${C_RESET}"
-else
-    install_from_repo Tela-circle-icon-theme https://github.com/vinceliuice/Tela-circle-icon-theme.git
-fi
-
-if theme_installed Vimix-cursors "${ICON_DIRS[@]}"; then
-    echo -e "${C_YELLOW}Vimix cursors already installed. Skipping.${C_RESET}"
-else
-    install_from_repo Vimix-cursors https://github.com/vinceliuice/Vimix-cursors.git
+# name|repository|installed folder|where to look (theme or icon). Default install options:
+# Orchis in the default color (Orchis, -Dark, -Light and their sizes), Tela Circle in the
+# standard color (Tela-circle, -dark, -light), Vimix cursors.
+THEMES=(
+    "Orchis-theme|https://github.com/vinceliuice/Orchis-theme.git|Orchis|theme"
+    "Tela-circle-icon-theme|https://github.com/vinceliuice/Tela-circle-icon-theme.git|Tela-circle|icon"
+    "Vimix-cursors|https://github.com/vinceliuice/Vimix-cursors.git|Vimix-cursors|icon"
+)
+theme_lines=()
+theme_updates=()
+for entry in "${THEMES[@]}"; do
+    IFS='|' read -r name repo folder kind <<< "$entry"
+    if [ "$kind" = "theme" ]; then dirs=("${THEME_DIRS[@]}"); else dirs=("${ICON_DIRS[@]}"); fi
+    if ! theme_installed "$folder" "${dirs[@]}"; then
+        install_from_repo "$name" "$repo"
+        continue
+    fi
+    latest="$(remote_head "$repo")"
+    current="$(recorded_version "$name")"
+    if [ -z "$latest" ]; then
+        echo -e "${C_YELLOW}$name is installed; could not check for a newer version.${C_RESET}"
+    elif [ "$current" != "$latest" ]; then
+        theme_lines+=("$name $current -> $latest")
+        theme_updates+=("$entry")
+    else
+        echo -e "${C_YELLOW}$name is installed and up to date.${C_RESET}"
+    fi
+done
+if confirm_updates "Temas (GTK, icones e cursores)" "${theme_lines[@]}"; then
+    for entry in "${theme_updates[@]}"; do
+        IFS='|' read -r name repo _ _ <<< "$entry"
+        install_from_repo "$name" "$repo"
+    done
 fi
 
 # ─── GRUB Configuration ───────────────────────────────────────────────────────
@@ -105,9 +129,26 @@ if [ -f "$GRUB_CONF" ]; then
     elif [ ! -x "$GRUB_THEME_DIR/install.sh" ]; then
         echo -e "${C_YELLOW}GRUB theme repository not found at $GRUB_THEME_DIR (run 01-setupEnv.sh). Skipping.${C_RESET}"
     else
-        echo "Installing custom GRUB theme..."
-        read -r -a grub_theme_args <<< "$GRUB_THEME_ARGS"
-        (cd "$GRUB_THEME_DIR" && sudo ./install.sh "${grub_theme_args[@]}")
+        # Installed state = fork commit + options; a new commit (pulled by module 01) or new
+        # options count as a newer version
+        grub_state="$(git -C "$GRUB_THEME_DIR" rev-parse --short=12 HEAD) $GRUB_THEME_ARGS"
+        grub_recorded="$(recorded_version grub-theme)"
+        install_grub_theme=0
+        if [ "$grub_recorded" = "desconhecida" ]; then
+            install_grub_theme=1
+        elif [ "$grub_recorded" != "$grub_state" ]; then
+            if confirm_updates "Tema do GRUB" "grub2-theme $grub_recorded -> $grub_state"; then
+                install_grub_theme=1
+            fi
+        else
+            echo -e "${C_YELLOW}Custom GRUB theme is installed and up to date.${C_RESET}"
+        fi
+        if [ "$install_grub_theme" -eq 1 ]; then
+            echo "Installing custom GRUB theme..."
+            read -r -a grub_theme_args <<< "$GRUB_THEME_ARGS"
+            (cd "$GRUB_THEME_DIR" && sudo ./install.sh "${grub_theme_args[@]}")
+            record_version grub-theme "$grub_state"
+        fi
     fi
 
     echo "Updating GRUB..."
@@ -150,17 +191,33 @@ set_plymouth_theme() {
     fi
 }
 
-if [ "$(current_plymouth_theme)" = "$PLYMOUTH_THEME" ]; then
-    echo -e "${C_YELLOW}Plymouth theme $PLYMOUTH_THEME already active. Skipping.${C_RESET}"
-else
+PLYMOUTH_REPO="https://github.com/adi1090x/plymouth-themes.git"
+
+# Sparse clone: only this theme's folder is downloaded (a few MB, not the whole collection)
+install_plymouth_files() {
+    rm -rf "${temp_dir:?}/plymouth-themes"
+    git clone --depth=1 --filter=blob:none --sparse "$PLYMOUTH_REPO" "$temp_dir/plymouth-themes"
+    git -C "$temp_dir/plymouth-themes" sparse-checkout set "$PLYMOUTH_PACK/$PLYMOUTH_THEME"
+    sudo mkdir -p "/usr/share/plymouth/themes/$PLYMOUTH_THEME"
+    sudo cp -r "$temp_dir/plymouth-themes/$PLYMOUTH_PACK/$PLYMOUTH_THEME/." "/usr/share/plymouth/themes/$PLYMOUTH_THEME/"
+    record_version "plymouth-$PLYMOUTH_THEME" "$(git -C "$temp_dir/plymouth-themes" rev-parse --short=12 HEAD)"
+}
+
+if [ "$(current_plymouth_theme)" != "$PLYMOUTH_THEME" ]; then
     if [ ! -d "/usr/share/plymouth/themes/$PLYMOUTH_THEME" ]; then
-        # Sparse clone: only this theme's folder is downloaded (a few MB, not the whole collection)
-        git clone --depth=1 --filter=blob:none --sparse \
-            https://github.com/adi1090x/plymouth-themes.git "$temp_dir/plymouth-themes"
-        git -C "$temp_dir/plymouth-themes" sparse-checkout set "$PLYMOUTH_PACK/$PLYMOUTH_THEME"
-        sudo cp -r "$temp_dir/plymouth-themes/$PLYMOUTH_PACK/$PLYMOUTH_THEME" /usr/share/plymouth/themes/
+        install_plymouth_files
     fi
     set_plymouth_theme "$PLYMOUTH_THEME"
+else
+    latest="$(remote_head "$PLYMOUTH_REPO")"
+    current="$(recorded_version "plymouth-$PLYMOUTH_THEME")"
+    if [ -n "$latest" ] && [ "$current" != "$latest" ] \
+        && confirm_updates "Tela de boot (Plymouth)" "$PLYMOUTH_THEME $current -> $latest"; then
+        install_plymouth_files
+        set_plymouth_theme "$PLYMOUTH_THEME"
+    else
+        echo -e "${C_YELLOW}Plymouth theme $PLYMOUTH_THEME is active.${C_RESET}"
+    fi
 fi
 
 echo -e "${C_GREEN}Themes, Icons, GRUB and Plymouth configured.${C_RESET}"

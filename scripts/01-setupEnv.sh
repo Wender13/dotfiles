@@ -52,6 +52,12 @@ else
     clone_if_missing \
         "https://github.com/$github_user/grub2-theme.git" \
         "$HOME/Dev/linux_projects/gnome/grub2/grub2-theme"
+
+    # These are working copies: only clean ones are fast-forwarded (see offer_git_updates)
+    offer_git_updates "Forks pessoais (GitHub)" \
+        "$HOME/Dev/linux_projects/gnome/extensions/hidetopbar" \
+        "$HOME/Dev/linux_projects/gnome/extensions/gnome-shell-extension-lockkeys" \
+        "$HOME/Dev/linux_projects/gnome/grub2/grub2-theme"
 fi
 
 echo -e "${C_GREEN}Environment setup complete.${C_RESET}"

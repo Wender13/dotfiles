@@ -28,8 +28,9 @@ FLATPAK_APPS=(
     org.inkscape.Inkscape
 )
 
-# System-wide, same scope as the Flathub remote. --or-update keeps reruns from failing.
+# System-wide, same scope as the Flathub remote. Missing apps are installed; installed
+# ones with an update follow the update policy (see lib.sh).
 echo -e "${C_BLUE}Instalando aplicativos via Flatpak...${C_RESET}"
-sudo flatpak install -y --or-update flathub "${FLATPAK_APPS[@]}"
+install_flatpaks "${FLATPAK_APPS[@]}"
 
 echo -e "${C_GREEN}Flatpak programs installed.${C_RESET}"

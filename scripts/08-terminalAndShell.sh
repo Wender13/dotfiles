@@ -30,24 +30,72 @@ clone_if_missing https://github.com/spaceship-prompt/spaceship-prompt.git "${ZSH
 ln -sfn "${ZSH_CUSTOM}/themes/spaceship-prompt/spaceship.zsh-theme" \
         "${ZSH_CUSTOM}/themes/spaceship.zsh-theme"
 
+# Already cloned ones: newer upstream commits follow the update policy
+offer_git_updates "Zsh: oh-my-zsh, plugins e tema" \
+    "$HOME/.oh-my-zsh" \
+    "${ZSH_CUSTOM}/plugins/k" \
+    "${ZSH_CUSTOM}/plugins/zsh-autosuggestions" \
+    "${ZSH_CUSTOM}/plugins/zsh-syntax-highlighting" \
+    "${ZSH_CUSTOM}/plugins/zsh-completions" \
+    "${ZSH_CUSTOM}/themes/spaceship-prompt"
+
 print_header "Installing Nerd Fonts"
 
 FONT_DIR="$HOME/.local/share/fonts/NerdFonts"
-fonts_changed=0
-for font in JetBrainsMono FiraCode; do
-    if compgen -G "$FONT_DIR/${font}NerdFont-*" > /dev/null; then
-        echo -e "${C_YELLOW}$font Nerd Font already installed.${C_RESET}"
-        continue
+NERD_FONTS=(JetBrainsMono FiraCode)
+# Latest release tag (e.g. v3.5.1), read from the redirect of the "latest" page.
+# Empty when offline: the check is skipped instead of aborting the module.
+nf_latest="$(curl -fsSI https://github.com/ryanoasis/nerd-fonts/releases/latest | sed -n 's#^location: .*/tag/##ip' | tr -d '\r')" || nf_latest=""
+
+# $1: font name, $2: release tag ("latest" when the tag is unknown)
+install_nerd_font() {
+    local url archive
+    if [ "$2" = "latest" ]; then
+        url="https://github.com/ryanoasis/nerd-fonts/releases/latest/download/$1.tar.xz"
+    else
+        url="https://github.com/ryanoasis/nerd-fonts/releases/download/$2/$1.tar.xz"
     fi
-    echo "Downloading $font Nerd Font..."
+    echo "Downloading $1 Nerd Font..."
     mkdir -p "$FONT_DIR"
     # The .tar.xz assets are about 15x smaller than the .zip ones
     archive="$(mktemp --suffix=.tar.xz)"
-    curl -fsSL -o "$archive" "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/${font}.tar.xz"
+    curl -fsSL -o "$archive" "$url"
     tar -xJf "$archive" -C "$FONT_DIR" --wildcards '*.ttf'
     rm -f "$archive"
-    fonts_changed=1
+}
+
+fonts_changed=0
+missing_fonts=()
+for font in "${NERD_FONTS[@]}"; do
+    if ! compgen -G "$FONT_DIR/${font}NerdFont-*" > /dev/null; then
+        missing_fonts+=("$font")
+    fi
 done
+if [ ${#missing_fonts[@]} -gt 0 ]; then
+    for font in "${missing_fonts[@]}"; do
+        install_nerd_font "$font" "${nf_latest:-latest}"
+    done
+    fonts_changed=1
+    # The recorded version is only trusted when every font came from the same release
+    if [ ${#missing_fonts[@]} -eq ${#NERD_FONTS[@]} ] && [ -n "$nf_latest" ]; then
+        record_version nerd-fonts "$nf_latest"
+    fi
+else
+    nf_current="$(recorded_version nerd-fonts)"
+    if [ -z "$nf_latest" ]; then
+        echo -e "${C_YELLOW}Nerd Fonts installed; could not check for a newer release.${C_RESET}"
+    elif [ "$nf_current" != "$nf_latest" ]; then
+        if confirm_updates "Nerd Fonts" "${NERD_FONTS[*]} $nf_current -> $nf_latest"; then
+            for font in "${NERD_FONTS[@]}"; do
+                install_nerd_font "$font" "$nf_latest"
+            done
+            record_version nerd-fonts "$nf_latest"
+            fonts_changed=1
+        fi
+    else
+        echo -e "${C_YELLOW}Nerd Fonts installed and up to date ($nf_current).${C_RESET}"
+    fi
+fi
 
 if [ "$fonts_changed" -eq 1 ]; then
     echo "Updating font cache..."

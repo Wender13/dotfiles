@@ -7,22 +7,45 @@ SCRIPT_DIR="$(dirname "$(realpath "$0")")"
 source "$SCRIPT_DIR/lib.sh"
 detect_distro
 
+# This module exists to update, but it still follows the update policy: with "keep" it only
+# reports what is available, with "ask" it lists everything and asks once per group.
 print_header "Updating system and packages"
 
 # One command per line: a failure inside an '&&' chain would not stop the script.
 if is_apt; then
     sudo apt update
-    sudo apt upgrade -y
-    sudo apt dist-upgrade -y
-    sudo apt autoremove -y
+    # Lines look like: name/suite 2.0-1 amd64 [upgradable from: 1.0-1]
+    mapfile -t system_lines < <(apt list --upgradable 2> /dev/null \
+        | awk 'index($0, "[upgradable from:") { split($1, p, "/"); old = $NF; sub(/\]$/, "", old); print p[1], old, "->", $2 }')
 elif is_dnf; then
-    sudo dnf upgrade --refresh -y
-    sudo dnf autoremove -y
+    mapfile -t system_lines < <(dnf repoquery --refresh --upgrades --latest-limit=1 --qf '%{name} %{evr}\n' 2> /dev/null \
+        | sort -u | while read -r name new; do
+            echo "$name $(rpm -q --qf '%{EVR}\n' "$name" | head -n1) -> $new"
+        done)
+fi
+
+if [ ${#system_lines[@]} -eq 0 ]; then
+    echo "System packages are up to date."
+elif confirm_updates "Pacotes do sistema" "${system_lines[@]}"; then
+    if is_apt; then
+        sudo apt upgrade -y
+        sudo apt dist-upgrade -y
+        sudo apt autoremove -y
+    else
+        sudo dnf upgrade --refresh -y
+        sudo dnf autoremove -y
+    fi
 fi
 
 if command -v flatpak &>/dev/null; then
     print_header "Updating Flatpak applications"
-    sudo flatpak update -y
+    mapfile -t flatpak_lines < <(flatpak remote-ls --system --updates --columns=application,version 2> /dev/null \
+        | awk -F'\t' '{ print $1, "->", ($2 == "" ? "nova revisao" : $2) }')
+    if [ ${#flatpak_lines[@]} -eq 0 ]; then
+        echo "Flatpaks are up to date."
+    elif confirm_updates "Flatpak (aplicativos e runtimes)" "${flatpak_lines[@]}"; then
+        sudo flatpak update -y
+    fi
 fi
 
 # ─── Firmware (report only) ───────────────────────────────────────────────────

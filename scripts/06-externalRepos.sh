@@ -47,7 +47,7 @@ if is_apt; then
         docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin)
 
     sudo apt-get update
-    sudo apt-get install -y "${packages[@]}"
+    install_packages "06 - repositorios externos" "${packages[@]}"
 
     # Docker Desktop is only distributed as a standalone package
     if ! dpkg -s docker-desktop &>/dev/null; then
@@ -57,7 +57,7 @@ if is_apt; then
         sudo apt-get install -y "$desktop_pkg"
         rm -f "$desktop_pkg"
     else
-        echo -e "${C_YELLOW}Docker Desktop already installed.${C_RESET}"
+        echo -e "${C_YELLOW}Docker Desktop already installed (it updates itself from its own Settings).${C_RESET}"
     fi
 
 elif is_dnf; then
@@ -65,7 +65,7 @@ elif is_dnf; then
 
     # dnf5 'config-manager' comes from dnf5-plugins (dnf-plugins-core is the dnf4 one).
     # fedora-workstation-repositories ships the (disabled) Google Chrome repo.
-    sudo dnf install -y dnf5-plugins fedora-workstation-repositories
+    install_missing_packages dnf5-plugins fedora-workstation-repositories
 
     # VSCode via Microsoft RPM repo
     sudo rpm --import https://packages.microsoft.com/keys/microsoft.asc
@@ -87,7 +87,7 @@ elif is_dnf; then
     packages=(code mongodb-org mongodb-mongosh google-chrome-stable
         docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin)
 
-    sudo dnf install -y "${packages[@]}"
+    install_packages "06 - repositorios externos" "${packages[@]}"
 
     # Docker Desktop is only distributed as a standalone RPM
     if ! rpm -q docker-desktop &>/dev/null; then
@@ -97,7 +97,7 @@ elif is_dnf; then
         sudo dnf install -y "$desktop_pkg"
         rm -f "$desktop_pkg"
     else
-        echo -e "${C_YELLOW}Docker Desktop already installed.${C_RESET}"
+        echo -e "${C_YELLOW}Docker Desktop already installed (it updates itself from its own Settings).${C_RESET}"
     fi
 fi
 

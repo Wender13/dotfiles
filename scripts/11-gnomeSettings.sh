@@ -55,25 +55,53 @@ install_from_ego() {
     rm -f "$zip"
 }
 
+# Version published on extensions.gnome.org for this GNOME Shell, or nothing (offline, none)
+ego_version() {
+    curl -fsS "https://extensions.gnome.org/extension-info/?uuid=$1&shell_version=${SHELL_VERSION}" 2> /dev/null \
+        | python3 -c 'import json, sys; print(json.load(sys.stdin)["version"])' 2> /dev/null || true
+}
+
 dnf_packages=()
 ego_extensions=()
+ego_installed=()
 # extensions.txt: "UUID [Fedora package]" per line; '#' starts a comment
 while read -r uuid package _; do
     if [ -z "$uuid" ] || [[ "$uuid" == \#* ]]; then
         continue
     fi
-    if extension_installed "$uuid"; then
-        echo -e "${C_YELLOW}Already installed: $uuid${C_RESET}"
-    elif [ -n "$package" ] && is_dnf; then
+    if [ -n "$package" ] && is_dnf && [ ! -d "$HOME/.local/share/gnome-shell/extensions/$uuid" ]; then
+        # Native package (updated by dnf), unless a user-installed copy already takes precedence
         dnf_packages+=("$package")
+    elif [ -d "$HOME/.local/share/gnome-shell/extensions/$uuid" ]; then
+        ego_installed+=("$uuid")
+    elif extension_installed "$uuid"; then
+        echo -e "${C_YELLOW}Already installed (system): $uuid${C_RESET}"
     else
         ego_extensions+=("$uuid")
     fi
 done < "$GNOME_DIR/extensions.txt"
 
-# Native package first (updated by dnf), extensions.gnome.org for the rest
 if [ ${#dnf_packages[@]} -gt 0 ]; then
-    sudo dnf install -y "${dnf_packages[@]}"
+    install_packages "Extensoes do GNOME (pacotes do Fedora)" "${dnf_packages[@]}"
+fi
+
+# User-installed extensions: newer builds on extensions.gnome.org follow the update policy.
+# (GNOME Shell also updates these by itself; this makes the update explicit and immediate.)
+ego_lines=()
+ego_updates=()
+for uuid in "${ego_installed[@]}"; do
+    current="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1])).get("version", 0))' \
+        "$HOME/.local/share/gnome-shell/extensions/$uuid/metadata.json" 2> /dev/null || echo 0)"
+    latest="$(ego_version "$uuid")"
+    if [ -n "$latest" ] && version_gt "$latest" "$current"; then
+        ego_lines+=("$uuid v$current -> v$latest")
+        ego_updates+=("$uuid")
+    else
+        echo -e "${C_YELLOW}Already installed: $uuid (v$current)${C_RESET}"
+    fi
+done
+if confirm_updates "Extensoes do GNOME (extensions.gnome.org)" "${ego_lines[@]}"; then
+    ego_extensions+=("${ego_updates[@]}")
 fi
 
 failed=()
