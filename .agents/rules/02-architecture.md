@@ -8,7 +8,8 @@ trigger: always_on
 O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
 
 ## Estrutura de Diretórios
-- `app.sh` (Raiz): **O Ponto de Entrada**. Descobre os módulos dinamicamente, lendo `scripts/*.sh` (exceto `lib.sh`) em ordem alfabética, por isso o prefixo numérico. Renderiza o menu interativo e aceita, em qualquer ordem, `--all` (execução headless), uma política de versões (`--ask`, `--update` ou `--keep`) e `--help`; qualquer outra opção é recusada. Resolve a política (flag > `UPDATE_POLICY` do `.env` > padrão: `ask` no menu, `keep` no `--all`), mostra-a no topo do menu e a repassa aos módulos em `DOTFILES_UPDATE_POLICY`. O `app.sh` NUNCA executa comandos de sistema pesados diretamente; ele apenas delega para os scripts.
+- `app.sh` (Raiz): **O Ponto de Entrada**. Descobre os módulos dinamicamente, lendo `scripts/*.sh` (exceto `lib.sh`) em ordem alfabética, por isso o prefixo numérico. Renderiza o menu interativo e aceita, em qualquer ordem, `--all` (execução headless) ou `--gui` (interface gráfica, que recebe a política resolvida), uma política de versões (`--ask`, `--update` ou `--keep`) e `--help`; qualquer outra opção é recusada. Resolve a política (flag > `UPDATE_POLICY` do `.env` > padrão: `ask` no menu, `keep` no `--all`), mostra-a no topo do menu e a repassa aos módulos em `DOTFILES_UPDATE_POLICY`. O `app.sh` NUNCA executa comandos de sistema pesados diretamente; ele apenas delega para os scripts.
+- `gui/dotfiles_gui.py`: **a interface gráfica** (Python + GTK 4 + libadwaita + VTE, tudo já instalado no Fedora Workstation: o Ptyxis depende do VTE). Lê os módulos com as mesmas regras do `app.sh` e roda cada um num terminal embutido (VTE), onde a senha do sudo, as perguntas da política de versões, o seletor do 12 e o Ctrl+C funcionam como no menu; "Run All" executa `./app.sh --all --<política>`. Segue o estilo do sistema (claro/escuro, cor de destaque, alto contraste) e permite forçar claro ou escuro (preferência em `~/.config/dotfiles/gui.ini`). O menu da janela cria o atalho `~/.local/share/applications/local.dotfiles.Setup.desktop` (ícone `gui/dotfiles.svg`). Sem display, sai com erro e indica o menu do terminal.
 - `scripts/NN-nome.sh`: os módulos, onde toda a "mão na massa" acontece. O nome do arquivo deve ter no máximo 24 caracteres (largura da coluna do menu; acima disso é truncado). Cada módulo declara seus metadados no cabeçalho:
   ```bash
   # MENU_DESC: Descricao curta (maximo 44 caracteres; acima disso e truncada no menu)
@@ -70,6 +71,12 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
 5. O módulo importa `lib.sh`, detecta a distro, roda com segurança (`set -euo pipefail`) e retorna um código de saída.
 6. O `app.sh` exibe o resultado (`exec_footer`) e volta ao menu.
 7. Ctrl+C durante um módulo interrompe apenas o módulo (status 130) e volta ao menu; no prompt do menu, Ctrl+C sai.
+
+### Interface gráfica (`./app.sh --gui`)
+1. O `app.sh` resolve a política de versões e executa `gui/dotfiles_gui.py`, que a mostra como valor inicial (Ask, Update ou Keep).
+2. A janela lista os módulos por categoria. Cada execução pede confirmação e abre a página de execução, com o módulo (`bash scripts/<modulo>.sh`) num terminal embutido e `DOTFILES_UPDATE_POLICY` com a política escolhida.
+3. "Stop" envia Ctrl+C ao módulo. Ao terminar, a barra inferior mostra sucesso, interrupção ou o status de erro; fechar a janela com um módulo rodando pede confirmação.
+4. Fora do GNOME, um aviso no topo indica que as etapas do GNOME serão puladas (a regra é a do `is_gnome`, consultada no `lib.sh`).
 
 ### Headless (`./app.sh --all`)
 1. Grava a execução inteira em `~/.local/state/dotfiles/logs/setup-<data>.log` (pasta 700, os 10 mais recentes são mantidos). Com o `script` do util-linux disponível, o `app.sh` se reexecuta dentro dele (mantém o terminal, as barras de progresso e as cores); sem ele, usa `tee`. Só a saída é gravada, nunca o que é digitado.

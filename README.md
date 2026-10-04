@@ -25,6 +25,7 @@ Todos os módulos são **idempotentes**: rodar de novo não duplica nada e compl
 ## Requisitos
 - Usuário comum com permissão de `sudo`. **Não execute como root nem com `sudo ./app.sh`**: os módulos instalam coisas no `$HOME` e pedem `sudo` só quando precisam (o projeto bloqueia a execução como root).
 - `git` para clonar o repositório e conexão com a internet.
+- Interface gráfica (opcional): Python com GTK 4, libadwaita e VTE. Já vêm no Fedora Workstation; no Ubuntu, `sudo apt install python3-gi gir1.2-adw-1 gir1.2-vte-3.91`.
 - Fedora Workstation (GNOME) para a experiência completa. Em outros desktops, as etapas do GNOME são puladas (ver [Módulos](#módulos)). A parte de boot do módulo 10 assume GRUB; sem `/etc/default/grub`, ela é pulada.
 
 ## Início rápido
@@ -34,6 +35,7 @@ cd dotfiles
 cp .env.example .env      # opcional, mas necessário para rodar sem perguntas
 $EDITOR .env
 ./app.sh                  # menu interativo
+./app.sh --gui            # ou a interface gráfica
 ```
 Se o `./app.sh` der "Permissão negada", rode `bash app.sh` uma vez e escolha o módulo `02` (permissões), ou execute `chmod +x app.sh`.
 
@@ -68,11 +70,18 @@ cp .env.example .env && $EDITOR .env   # preencha todas as chaves
 - **Log completo** de cada execução em `~/.local/state/dotfiles/logs/setup-<data>.log` (pasta só sua, os 10 mais recentes são mantidos); o caminho aparece no resumo final. Leia com `less -R`. Só a saída é gravada: a senha digitada nunca vai para o log.
 - Depois de terminar, **faça logout e login** (ou reinicie) para aplicar o shell zsh, o grupo `docker` e as fontes.
 
-### 2. Escolher módulos específicos pelo menu
+### 2. Escolher módulos específicos (menu ou interface gráfica)
 ```bash
 ./app.sh
 ```
 Digite o número do módulo, acompanhe a execução, pressione Enter para voltar ao menu e `q` para sair. **Ctrl+C** durante um módulo interrompe só aquele módulo e volta ao menu; no prompt do menu, Ctrl+C sai. `./app.sh --help` mostra as opções. No menu, a política de versões padrão é perguntar (`ask`); `./app.sh --update` ou `./app.sh --keep` mudam isso (caso de uso 5). O resultado (sucesso ou status de erro) aparece ao fim de cada módulo.
+
+**Interface gráfica** (`./app.sh --gui`): uma janela nativa do GNOME (GTK 4 + libadwaita) com os mesmos módulos, agrupados por categoria.
+- **Segue o tema do sistema**: claro ou escuro, a cor de destaque e o alto contraste mudam junto com o GNOME, na hora. No menu da janela (botão de três linhas), **System / Light / Dark** força o claro ou o escuro; a escolha fica salva.
+- Clique num módulo, confirme, e ele roda num **terminal embutido**: a senha do `sudo`, as perguntas de versão e o seletor de imagens do 12 aparecem ali, como no terminal. **Stop** envia Ctrl+C. No fim, a barra inferior mostra sucesso, interrupção ou o status de erro.
+- No topo: a política de versões (**Ask**, **Update** ou **Keep**; o valor inicial vem da flag ou do `.env`), **Run All** (o mesmo que `./app.sh --all`, com log) e **.env** (cria a partir do `.env.example` ou abre para editar).
+- **Add to Applications Menu**, no menu da janela, cria o atalho no menu de aplicativos do GNOME; **Open Logs Folder** abre os logs do `--all`.
+- Fora do GNOME, um aviso no topo lembra que as etapas do GNOME serão puladas.
 
 ### 3. Executar um módulo isolado, sem o menu
 ```bash
@@ -229,9 +238,10 @@ Transparência sobre tudo o que sai do `$HOME`:
 - **Usuário**: o shell padrão passa a ser o zsh (`usermod --shell`); a foto escolhida no módulo 12 é entregue ao AccountsService, que guarda a cópia dele em `/var/lib/AccountsService/icons/`.
 - **Boot**: `/etc/default/grub` (com backup) e `/boot/grub2/grub.cfg`; tema GRUB em `/boot/grub2/themes` (com `-b`); tema Plymouth em `/usr/share/plymouth/themes/deus_ex`, com o initramfs reconstruído.
 - **Configurações do GNOME (dconf do seu usuário)**: as chaves de `style/gnome/dconf/*.ini`. Só as chaves listadas são alteradas; o resto fica como está. O módulo 12 altera também o papel de parede (`org.gnome.desktop.background` e `org.gnome.desktop.screensaver`).
-- **No `$HOME`**: `~/Dev`, `~/.oh-my-zsh`, `~/.zshrc` (com backup), `~/.local/share/fonts/NerdFonts`, temas em `~/.themes` e `~/.local/share/icons`, extensões em `~/.local/share/gnome-shell/extensions`, `~/.config/burn-my-windows`, cópias dos papéis de parede em `~/.local/share/backgrounds`, `~/.cargo`, `~/.rustup`, `~/.local/share/fnm`, `~/.local/share/pnpm`, Claude Code em `~/.local/bin/claude` e `~/.local/share/claude`, Antigravity em `~/.local/bin/agy`, logs em `~/.local/state/dotfiles/logs`, versões registradas em `~/.local/state/dotfiles/versions`, `~/.gitconfig` e `~/.ssh`.
+- **No `$HOME`**: `~/Dev`, `~/.oh-my-zsh`, `~/.zshrc` (com backup), `~/.local/share/fonts/NerdFonts`, temas em `~/.themes` e `~/.local/share/icons`, extensões em `~/.local/share/gnome-shell/extensions`, `~/.config/burn-my-windows`, cópias dos papéis de parede em `~/.local/share/backgrounds`, `~/.cargo`, `~/.rustup`, `~/.local/share/fnm`, `~/.local/share/pnpm`, Claude Code em `~/.local/bin/claude` e `~/.local/share/claude`, Antigravity em `~/.local/bin/agy`, logs em `~/.local/state/dotfiles/logs`, versões registradas em `~/.local/state/dotfiles/versions`, preferência de tema da interface gráfica em `~/.config/dotfiles/gui.ini` e o atalho dela em `~/.local/share/applications/local.dotfiles.Setup.desktop` (só se você pedir), `~/.gitconfig` e `~/.ssh`.
 
 ## Solução de problemas
+- **"No graphical display found"** ou **"The graphical interface needs GTK 4, libadwaita and VTE"** (`--gui`): rode de dentro da sessão gráfica e instale o que a mensagem indicar; o menu do terminal (`./app.sh`) faz o mesmo.
 - **Algo falhou no `--all` e a saída já rolou da tela**: veja o log indicado no resumo final (`~/.local/state/dotfiles/logs/`).
 - **"[ERRO CRITICO] Falha na execucao do script!"**: a mensagem mostra o arquivo, a linha, o comando e o status. Corrija a causa (rede, repositório fora do ar, pacote renomeado) e rode o módulo de novo.
 - **"No match for argument" no dnf**: um pacote foi renomeado ou removido numa nova versão do Fedora. Confira com `dnf repoquery --available <nome>` e atualize a lista no módulo.
@@ -249,7 +259,8 @@ Transparência sobre tudo o que sai do `$HOME`:
 ## Estrutura do projeto
 ```text
 .
-├── app.sh                  # Ponto de entrada: menu interativo e modo --all
+├── app.sh                  # Ponto de entrada: menu interativo, modo --all e --gui
+├── gui/                    # Interface gráfica (dotfiles_gui.py) e o ícone dela
 ├── scripts/
 │   ├── lib.sh              # Biblioteca compartilhada (cores, distro, helpers, trap de erros)
 │   └── NN-nome.sh          # Módulos, executados em ordem numérica
@@ -331,7 +342,7 @@ dnf install --assumeno <lista de pacotes> # a transação resolve? (sem root)
 dnf remove --assumeno <pacote>            # o que mais seria removido? (sem root)
 ```
 O `tools/check.sh` nunca executa módulos nem usa `sudo`. O shellcheck roda num container com a versão fixa 0.11.0 (podman ou docker), para dar o mesmo resultado em qualquer máquina; sem container, usa o shellcheck local. O **CI** (`.github/workflows/check.yml`) roda o mesmo script a cada push e pull request no GitHub.
-Módulos que não exigem root (01, 07, 08) podem ser testados com `HOME` apontando para um diretório temporário. Para ver o comportamento fora do GNOME, rode o módulo com `XDG_CURRENT_DESKTOP=KDE`. Nunca teste o 11 ou o 12 com a sessão D-Bus real: aponte `DBUS_SESSION_BUS_ADDRESS` para um socket inexistente e use `dconf`/`gsettings` falsos (detalhes em `.agents/rules/03-standards.md`).
+Módulos que não exigem root (01, 07, 08) podem ser testados com `HOME` apontando para um diretório temporário. Para ver o comportamento fora do GNOME, rode o módulo com `XDG_CURRENT_DESKTOP=KDE`. Nunca teste o 11 ou o 12 com a sessão D-Bus real: aponte `DBUS_SESSION_BUS_ADDRESS` para um socket inexistente e use `dconf`/`gsettings` falsos (detalhes em `.agents/rules/03-standards.md`). A interface gráfica é testada numa cópia com módulos falsos, num display sem tela (broadway), também descrito lá.
 
 ### Commits
 Em inglês, no padrão Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`), com título curto e corpo explicando o porquê. Detalhes em `.agents/rules/05-security-and-git.md`.

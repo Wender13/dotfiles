@@ -10,7 +10,7 @@ Este projeto é uma ferramenta de automação pessoal (Dotfiles e Setup de Ambie
 
 ## Público-Alvo e Filosofia
 - Repositório pessoal: o único usuário é o próprio dono do repositório. Mesmo assim, nenhum nome de usuário, e-mail ou dado pessoal real pode aparecer nos arquivos (ver `05-security-and-git.md`).
-- Dupla funcionalidade: um menu interativo CLI (`./app.sh`, o usuário escolhe os módulos) e um modo autônomo (`./app.sh --all`), que roda todos os módulos em sequência pedindo a senha do sudo uma única vez. Os dados pessoais do modo autônomo vêm do `.env`.
+- Três formas de uso: um menu interativo CLI (`./app.sh`, o usuário escolhe os módulos), um modo autônomo (`./app.sh --all`), que roda todos os módulos em sequência pedindo a senha do sudo uma única vez, e uma interface gráfica nativa do GNOME (`./app.sh --gui`) que faz o mesmo que o menu. Os dados pessoais do modo autônomo vêm do `.env`.
 - Política de versões: o que já está instalado nunca é atualizado em silêncio. Quando há versão mais nova, o app mostra `atual -> nova`, avisa que versões novas podem quebrar recursos e segue a política escolhida: `ask` (pergunta uma vez por grupo; padrão do menu), `update` (atualiza) ou `keep` (mantém; padrão do `--all`). As flags `--ask`, `--update` e `--keep` têm prioridade sobre a chave `UPDATE_POLICY` do `.env`.
 - Os módulos rodam como usuário normal. O `sudo` é chamado apenas nas linhas que precisam dele; executar o projeto como root é bloqueado.
 

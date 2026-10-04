@@ -29,7 +29,12 @@ done
 if command -v zsh &>/dev/null; then
     zsh -n terminal/.zshrc 2>/dev/null || { fail "zsh -n terminal/.zshrc"; syntax_ok=0; }
 fi
-[ "$syntax_ok" -eq 1 ] && ok "bash -n on ${#SHELL_FILES[@]} files, zsh -n on terminal/.zshrc"
+# The graphical interface: parsed only (no GTK needed, no __pycache__ written in the repo)
+for f in gui/*.py; do
+    python3 -c 'import ast, sys; ast.parse(open(sys.argv[1]).read(), sys.argv[1])' "$f" 2>/dev/null \
+        || { fail "python syntax $f"; syntax_ok=0; }
+done
+[ "$syntax_ok" -eq 1 ] && ok "bash -n on ${#SHELL_FILES[@]} files, zsh -n on terminal/.zshrc, python on gui/"
 
 echo "Lint (shellcheck, warnings and errors)"
 SC_ARGS=(-x -S warning -e SC1091 -e SC2034)

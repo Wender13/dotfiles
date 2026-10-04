@@ -193,10 +193,11 @@ start_sudo_keepalive() {
 
 usage() {
     cat <<EOF
-Usage: ./app.sh [--all] [--ask | --update | --keep]
+Usage: ./app.sh [--all | --gui] [--ask | --update | --keep]
        ./app.sh --help
   (no option)  Interactive menu
   --all        Run every module in order, without the menu (headless)
+  --gui        Graphical interface (GTK 4 + libadwaita, follows the system style)
 
   What to do when something is already installed and a newer version exists:
   --ask        Show "current -> new", warn and ask (default of the menu)
@@ -214,7 +215,13 @@ MODE="menu"
 POLICY_FLAG=""
 for arg in "$@"; do
     case "$arg" in
-        --all) MODE="all" ;;
+        --all|--gui)
+            if [ "$MODE" != "menu" ] && [ "$MODE" != "${arg#--}" ]; then
+                printf "${C_RED}Choose only one of --all and --gui.${C_RESET}\n" >&2
+                exit 2
+            fi
+            MODE="${arg#--}"
+            ;;
         --ask|--update|--keep)
             if [ -n "$POLICY_FLAG" ] && [ "$POLICY_FLAG" != "${arg#--}" ]; then
                 printf "${C_RED}Choose only one of --ask, --update and --keep.${C_RESET}\n" >&2
@@ -257,6 +264,11 @@ case "$UPDATE_POLICY" in
 esac
 # Read by scripts/lib.sh in every module
 export DOTFILES_UPDATE_POLICY="$UPDATE_POLICY"
+
+# Graphical interface: lists the same modules and runs them in an embedded terminal
+if [ "$MODE" = "gui" ]; then
+    exec python3 "$(dirname "$(realpath "$0")")/gui/dotfiles_gui.py"
+fi
 
 # Modo Headless (Não-interativo)
 LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/logs"

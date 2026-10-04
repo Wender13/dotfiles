@@ -3,7 +3,7 @@
 Você está auxiliando no desenvolvimento de uma ferramenta de automação de Dotfiles para Linux (Bash), com o Fedora 41+ como alvo principal. A fonte de verdade das regras é a pasta `.agents/rules/`; leia-a antes de propor mudanças. Siga estas diretrizes estritamente em todas as suas respostas e sugestões de código:
 
 ## 1. Arquitetura e Modularidade
-- O arquivo `app.sh` é o menu interativo de entrada (e o modo `--all`, headless). NÃO coloque lógica de instalação nele.
+- O arquivo `app.sh` é o menu interativo de entrada (e o modo `--all`, headless). A interface gráfica (`gui/dotfiles_gui.py`, GTK 4 + libadwaita, aberta por `./app.sh --gui`) também só lista os módulos e os executa num terminal embutido. NÃO coloque lógica de instalação em nenhum dos dois.
 - Toda nova automação deve ser um script isolado em `scripts/NN-nome.sh`, com os cabeçalhos `# MENU_DESC:` (máximo 44 caracteres) e `# CATEGORY:`. O `app.sh` descobre os módulos sozinho; não há arrays para editar.
 - Use a biblioteca `scripts/lib.sh` (via `source`) para cores, detecção de distro (`detect_distro`, `is_apt`, `is_dnf`), detecção do GNOME (`is_gnome`, `gnome_only`, `require_gnome`), `ensure_command`, `clone_if_missing`, `load_env`, `ensure_flathub` e a política de versões (`install_packages`, `install_flatpaks`, `offer_git_updates`, `confirm_updates`).
 - O desktop alvo é o GNOME. Tudo que é específico dele (configurações, extensões, temas, apps do GNOME) passa por `require_gnome` (módulo inteiro) ou `if gnome_only "etapa"; then ... fi` (etapa); em outros desktops é pulado com aviso, nunca com erro.
