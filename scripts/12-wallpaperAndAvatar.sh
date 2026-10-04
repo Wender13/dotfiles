@@ -20,6 +20,7 @@ if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
 fi
 
 ensure_command python3 python3 python3
+ensure_command dconf dconf-cli dconf   # tells a wallpaper you set from the default one
 # GdkPixbuf is what GNOME uses to draw wallpapers and user pictures, so an image it opens
 # here is an image GNOME can show
 if ! python3 -c 'import gi; gi.require_version("GdkPixbuf", "2.0"); from gi.repository import GdkPixbuf' 2> /dev/null; then
@@ -97,10 +98,17 @@ check_image_file() {
 # ─── Wallpaper ────────────────────────────────────────────────────────────────
 print_header "Wallpaper"
 
-choose_image "${WALLPAPER_IMAGE:-}" "wallpaper"
-if [ -z "$CHOSEN_IMAGE" ]; then
-    echo -e "${C_YELLOW}Keeping the current wallpaper.${C_RESET}"
+# Only-missing mode: a wallpaper you chose (the key is set, not at its default) is kept
+CHOSEN_IMAGE=""
+if only_missing && [ -n "$(dconf read /org/gnome/desktop/background/picture-uri)" ]; then
+    keep_existing "your wallpaper"
 else
+    choose_image "${WALLPAPER_IMAGE:-}" "wallpaper"
+    if [ -z "$CHOSEN_IMAGE" ]; then
+        echo -e "${C_YELLOW}Keeping the current wallpaper.${C_RESET}"
+    fi
+fi
+if [ -n "$CHOSEN_IMAGE" ]; then
     check_image_file "$CHOSEN_IMAGE" WALLPAPER_IMAGE
     load_image "$CHOSEN_IMAGE" || exit 1
 
@@ -133,22 +141,32 @@ fi
 # ─── User picture ─────────────────────────────────────────────────────────────
 print_header "User picture"
 
-choose_image "${AVATAR_IMAGE:-}" "user picture"
-if [ -z "$CHOSEN_IMAGE" ]; then
-    echo -e "${C_YELLOW}Keeping the current user picture.${C_RESET}"
+# AccountsService keeps the picture, shown on the login screen, the lock screen and the
+# system menu. Users may change their own picture without sudo.
+user_path="$(busctl --system call org.freedesktop.Accounts /org/freedesktop/Accounts \
+    org.freedesktop.Accounts FindUserByName s "$USER")"
+# Reply format: o "/org/freedesktop/Accounts/User1000"
+user_path="${user_path#o \"}"
+user_path="${user_path%\"}"
+# Reply format: s "/var/lib/AccountsService/icons/<user>" (empty without a picture)
+icon_file="$(busctl --system get-property org.freedesktop.Accounts "$user_path" org.freedesktop.Accounts.User IconFile)"
+icon_file="${icon_file#s \"}"
+icon_file="${icon_file%\"}"
+
+CHOSEN_IMAGE=""
+if only_missing && [ -n "$icon_file" ] && [ -f "$icon_file" ]; then
+    keep_existing "your user picture"
 else
+    choose_image "${AVATAR_IMAGE:-}" "user picture"
+    if [ -z "$CHOSEN_IMAGE" ]; then
+        echo -e "${C_YELLOW}Keeping the current user picture.${C_RESET}"
+    fi
+fi
+if [ -n "$CHOSEN_IMAGE" ]; then
     check_image_file "$CHOSEN_IMAGE" AVATAR_IMAGE
     avatar="$(mktemp --suffix=.png)"
     trap 'rm -f "$avatar"' EXIT
     load_image "$CHOSEN_IMAGE" "$avatar" || exit 1
-
-    # AccountsService keeps its own copy, shown on the login screen, the lock screen and the
-    # system menu. Users may change their own picture without sudo.
-    user_path="$(busctl --system call org.freedesktop.Accounts /org/freedesktop/Accounts \
-        org.freedesktop.Accounts FindUserByName s "$USER")"
-    # Reply format: o "/org/freedesktop/Accounts/User1000"
-    user_path="${user_path#o \"}"
-    user_path="${user_path%\"}"
     busctl --system call org.freedesktop.Accounts "$user_path" \
         org.freedesktop.Accounts.User SetIconFile s "$avatar"
     echo -e "${C_GREEN}User picture set from $CHOSEN_IMAGE.${C_RESET}"

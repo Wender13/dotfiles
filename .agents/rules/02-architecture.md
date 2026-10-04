@@ -8,8 +8,8 @@ trigger: always_on
 O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
 
 ## Estrutura de Diretórios
-- `app.sh` (Raiz): **O Ponto de Entrada**. Descobre os módulos dinamicamente, lendo `scripts/*.sh` (exceto `lib.sh`) em ordem alfabética, por isso o prefixo numérico. Renderiza o menu interativo e aceita, em qualquer ordem, `--all` (execução headless) ou `--gui` (interface gráfica, que recebe a política resolvida), uma política de versões (`--ask`, `--update` ou `--keep`) e `--help`; qualquer outra opção é recusada. Resolve a política (flag > `UPDATE_POLICY` do `.env` > padrão: `ask` no menu, `keep` no `--all`), mostra-a no topo do menu e a repassa aos módulos em `DOTFILES_UPDATE_POLICY`. O `app.sh` NUNCA executa comandos de sistema pesados diretamente; ele apenas delega para os scripts.
-- `gui/dotfiles_gui.py`: **a interface gráfica** (Python + GTK 4 + libadwaita + VTE, tudo já instalado no Fedora Workstation: o Ptyxis depende do VTE). Lê os módulos com as mesmas regras do `app.sh` e roda cada um num terminal embutido (VTE), onde a senha do sudo, as perguntas da política de versões, o seletor do 12 e o Ctrl+C funcionam como no menu; "Run All" executa `./app.sh --all --<política>`. Segue o estilo do sistema (claro/escuro, cor de destaque, alto contraste) e permite forçar claro ou escuro (preferência em `~/.config/dotfiles/gui.ini`). O menu da janela cria o atalho `~/.local/share/applications/local.dotfiles.Setup.desktop` (ícone `gui/dotfiles.svg`). Sem display, sai com erro e indica o menu do terminal.
+- `app.sh` (Raiz): **O Ponto de Entrada**. Descobre os módulos dinamicamente, lendo `scripts/*.sh` (exceto `lib.sh`) em ordem alfabética, por isso o prefixo numérico. Renderiza o menu interativo e aceita, em qualquer ordem, `--all` (execução headless) ou `--gui` (interface gráfica, que recebe a política e o modo resolvidos), uma política de versões (`--ask`, `--update` ou `--keep`), um modo de configuração (`--full` ou `--only-missing`) e `--help`; qualquer outra opção é recusada. Resolve o modo (flag > `CONFIG_MODE` do `.env` > `full`) e a política (flag > `UPDATE_POLICY` do `.env` > padrão: `ask` no menu, `keep` no `--all` e no `--only-missing`), mostra os dois no topo do menu e os repassa aos módulos em `DOTFILES_CONFIG_MODE` e `DOTFILES_UPDATE_POLICY`. O `app.sh` NUNCA executa comandos de sistema pesados diretamente; ele apenas delega para os scripts.
+- `gui/dotfiles_gui.py`: **a interface gráfica** (Python + GTK 4 + libadwaita + VTE, tudo já instalado no Fedora Workstation: o Ptyxis depende do VTE). Lê os módulos com as mesmas regras do `app.sh` e roda cada um num terminal embutido (VTE), onde a senha do sudo, as perguntas da política de versões, o seletor do 12 e o Ctrl+C funcionam como no menu; "Run All" executa `./app.sh --all --<política>`. Tem a chave "Only What Is Missing" (modo completar; ligada, muda a política para Keep). Segue o estilo do sistema (claro/escuro, cor de destaque, alto contraste) e permite forçar claro ou escuro (preferência em `~/.config/dotfiles/gui.ini`). O menu da janela cria o atalho `~/.local/share/applications/local.dotfiles.Setup.desktop` (ícone `gui/dotfiles.svg`). Sem display, sai com erro e indica o menu do terminal.
 - `scripts/NN-nome.sh`: os módulos, onde toda a "mão na massa" acontece. O nome do arquivo deve ter no máximo 24 caracteres (largura da coluna do menu; acima disso é truncado). Cada módulo declara seus metadados no cabeçalho:
   ```bash
   # MENU_DESC: Descricao curta (maximo 44 caracteres; acima disso e truncada no menu)
@@ -25,6 +25,7 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
   - `detect_distro`: define `PKG_MANAGER` (`apt` ou `dnf`), exige dnf5 no Fedora e recusa a família RHEL e o Fedora Atomic (Silverblue, Kinoite).
   - `is_apt` / `is_dnf`.
   - `is_gnome`, `gnome_only "etapa"` e `require_gnome`: detecção do GNOME (critério em `01-context.md`). `gnome_only` devolve 1 e avisa o que foi pulado; `require_gnome` encerra com sucesso os módulos que só configuram o GNOME (11 e 12).
+  - Modo de configuração (`CONFIG_MODE`: `full` ou `missing`, de `DOTFILES_CONFIG_MODE` ou do `.env`): `only_missing` (verdadeiro no modo completar) e `keep_existing "o quê"` (avisa o que foi mantido). Regras de uso em `03-standards.md`, seção 2.2.
   - `ensure_command <cmd> [pkg_apt] [pkg_dnf]`: instala o pacote se o comando não existir.
   - `clone_if_missing <repo> <destino>`.
   - `load_env`: carrega o `.env` da raiz, se existir.
@@ -74,7 +75,7 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
 
 ### Interface gráfica (`./app.sh --gui`)
 1. O `app.sh` resolve a política de versões e executa `gui/dotfiles_gui.py`, que a mostra como valor inicial (Ask, Update ou Keep).
-2. A janela lista os módulos por categoria. Cada execução pede confirmação e abre a página de execução, com o módulo (`bash scripts/<modulo>.sh`) num terminal embutido e `DOTFILES_UPDATE_POLICY` com a política escolhida.
+2. A janela lista os módulos por categoria. Cada execução pede confirmação e abre a página de execução, com o módulo (`bash scripts/<modulo>.sh`) num terminal embutido, `DOTFILES_UPDATE_POLICY` com a política escolhida e `DOTFILES_CONFIG_MODE` com o modo ("Run All" passa `--full` ou `--only-missing`).
 3. "Stop" envia Ctrl+C ao módulo. Ao terminar, a barra inferior mostra sucesso, interrupção ou o status de erro; fechar a janela com um módulo rodando pede confirmação.
 4. Fora do GNOME, um aviso no topo indica que as etapas do GNOME serão puladas (a regra é a do `is_gnome`, consultada no `lib.sh`).
 
@@ -85,6 +86,17 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
 4. A falha de um módulo não interrompe os seguintes. Ao final, lista os módulos que falharam, mostra o caminho do log e sai com código 1 (ou 0 se tudo deu certo).
 5. Sem `.env`, os módulos 01 e 07 perguntam os dados no terminal: o 01 permite pular, o 07 exige os dados. O 12 abre o seletor de arquivos (Cancelar mantém a imagem atual).
 6. A política de versões padrão é `keep`: só instala o que falta e lista o que tem versão nova. `--all --ask` pergunta uma vez por grupo; `--all --update` atualiza tudo.
+
+### Modo completar (`--only-missing`)
+Para máquinas já configuradas em parte. O que cada módulo faz de diferente:
+- 01: clona só os forks que faltam (sem forks faltando, nem pede o `GITHUB_USER`; isso vale nos dois modos).
+- 04: não remove nenhum programa (LibreOffice, bloatware do GNOME).
+- 06: não regrava arquivos de repositório existentes; com o Chrome instalado, não mexe no estado do repositório dele; serviço e grupo do Docker só se o `docker-ce` foi instalado nesta execução.
+- 07: mantém `user.name`, `user.email`, `init.defaultBranch` e `color.ui` já definidos, sem perguntar.
+- 08: mantém o `~/.zshrc` existente e o shell padrão (exceto se o zsh foi instalado nesta execução).
+- 10: não muda `GRUB_TIMEOUT`/`GRUB_TIMEOUT_STYLE` (e não regenera o `grub.cfg` sem mudança), mantém um `GRUB_THEME` que o projeto não instalou e a tela de boot atual.
+- 11: carrega só as chaves que o usuário ainda não definiu (`dconf read` vazio); em `enabled-extensions`, acrescenta as extensões do repositório que não estão ativas nem em `disabled-extensions`; não sobrescreve perfis do Burn My Windows.
+- 12: mantém um papel de parede definido (chave `picture-uri` no dconf) e uma foto existente no AccountsService.
 
 ## Dependências entre Módulos
 - O 10 instala o tema GRUB a partir do repositório clonado pelo 01.

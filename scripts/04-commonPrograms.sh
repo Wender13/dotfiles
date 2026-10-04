@@ -22,31 +22,35 @@ fi
 
 if is_apt; then
     print_header "Removing LibreOffice and GNOME bloatware"
-    # On Ubuntu, metapackages such as ubuntu-desktop depend on some of these. Removing one
-    # would take the metapackage along, and a later 'apt autoremove' would strip the desktop.
-    # So each installed package is simulated first and kept if apt would remove anything
-    # beyond this list.
-    REMOVE=('libreoffice*')
-    if [ "$GNOME" -eq 1 ]; then
-        REMOVE+=(yelp gnome-tour malcontent malcontent-gui gnome-contacts simple-scan)
-    fi
-    mapfile -t bloatware < <(dpkg-query -W -f='${Package} ${db:Status-Status}\n' "${REMOVE[@]}" 2>/dev/null \
-        | awk '$2 == "installed" { print $1 }')
-    removable=()
-    for pkg in "${bloatware[@]}"; do
-        # grep exits 1 when nothing beyond the list would be removed, which is the good case
-        extra="$(apt-get -s remove "$pkg" | awk '/^Remv /{ print $2 }' \
-            | grep -vxF -f <(printf '%s\n' "${bloatware[@]}") || true)"
-        if [ -z "$extra" ]; then
-            removable+=("$pkg")
-        else
-            echo -e "${C_YELLOW}Keeping $pkg: removing it would also remove $(echo "$extra" | tr '\n' ' ')${C_RESET}"
-        fi
-    done
-    if [ ${#removable[@]} -gt 0 ]; then
-        sudo apt-get remove -y --purge "${removable[@]}"
+    if only_missing; then
+        keep_existing "every installed program (nothing is removed)"
     else
-        echo -e "${C_YELLOW}Nothing to remove.${C_RESET}"
+        # On Ubuntu, metapackages such as ubuntu-desktop depend on some of these. Removing one
+        # would take the metapackage along, and a later 'apt autoremove' would strip the desktop.
+        # So each installed package is simulated first and kept if apt would remove anything
+        # beyond this list.
+        REMOVE=('libreoffice*')
+        if [ "$GNOME" -eq 1 ]; then
+            REMOVE+=(yelp gnome-tour malcontent malcontent-gui gnome-contacts simple-scan)
+        fi
+        mapfile -t bloatware < <(dpkg-query -W -f='${Package} ${db:Status-Status}\n' "${REMOVE[@]}" 2>/dev/null \
+            | awk '$2 == "installed" { print $1 }')
+        removable=()
+        for pkg in "${bloatware[@]}"; do
+            # grep exits 1 when nothing beyond the list would be removed, which is the good case
+            extra="$(apt-get -s remove "$pkg" | awk '/^Remv /{ print $2 }' \
+                | grep -vxF -f <(printf '%s\n' "${bloatware[@]}") || true)"
+            if [ -z "$extra" ]; then
+                removable+=("$pkg")
+            else
+                echo -e "${C_YELLOW}Keeping $pkg: removing it would also remove $(echo "$extra" | tr '\n' ' ')${C_RESET}"
+            fi
+        done
+        if [ ${#removable[@]} -gt 0 ]; then
+            sudo apt-get remove -y --purge "${removable[@]}"
+        else
+            echo -e "${C_YELLOW}Nothing to remove.${C_RESET}"
+        fi
     fi
 
     sudo apt update
@@ -78,18 +82,22 @@ if is_apt; then
 
 elif is_dnf; then
     print_header "Removing LibreOffice and GNOME bloatware"
-    # Only installed packages reach dnf, so reruns are no-ops and real failures stay visible.
-    # 'malcontent' itself is kept: gnome-control-center (and so gnome-shell) depends on it.
-    # Its GUI, malcontent-control, is safe to remove.
-    REMOVE=('libreoffice*')
-    if [ "$GNOME" -eq 1 ]; then
-        REMOVE+=(yelp gnome-tour malcontent-control gnome-contacts simple-scan)
-    fi
-    mapfile -t bloatware < <(rpm -qa --qf '%{NAME}\n' "${REMOVE[@]}" | sort -u)
-    if [ ${#bloatware[@]} -gt 0 ]; then
-        sudo dnf remove -y "${bloatware[@]}"
+    if only_missing; then
+        keep_existing "every installed program (nothing is removed)"
     else
-        echo -e "${C_YELLOW}Nothing to remove.${C_RESET}"
+        # Only installed packages reach dnf, so reruns are no-ops and real failures stay visible.
+        # 'malcontent' itself is kept: gnome-control-center (and so gnome-shell) depends on it.
+        # Its GUI, malcontent-control, is safe to remove.
+        REMOVE=('libreoffice*')
+        if [ "$GNOME" -eq 1 ]; then
+            REMOVE+=(yelp gnome-tour malcontent-control gnome-contacts simple-scan)
+        fi
+        mapfile -t bloatware < <(rpm -qa --qf '%{NAME}\n' "${REMOVE[@]}" | sort -u)
+        if [ ${#bloatware[@]} -gt 0 ]; then
+            sudo dnf remove -y "${bloatware[@]}"
+        else
+            echo -e "${C_YELLOW}Nothing to remove.${C_RESET}"
+        fi
     fi
 
     print_header "Enabling RPM Fusion"

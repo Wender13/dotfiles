@@ -36,6 +36,7 @@ cp .env.example .env      # opcional, mas necessário para rodar sem perguntas
 $EDITOR .env
 ./app.sh                  # menu interativo
 ./app.sh --gui            # ou a interface gráfica
+./app.sh --only-missing   # numa máquina já configurada em parte (caso de uso 4)
 ```
 Se o `./app.sh` der "Permissão negada", rode `bash app.sh` uma vez e escolha o módulo `02` (permissões), ou execute `chmod +x app.sh`.
 
@@ -48,6 +49,7 @@ O `.env` fica na raiz, é ignorado pelo git e guarda os dados pessoais. Nenhum d
 | `GIT_EMAIL` | 07 | `git config --global user.email` e comentário da chave SSH | Pergunta no terminal |
 | `GITHUB_USER` | 01 | Dono dos forks pessoais clonados (hidetopbar, lockkeys, grub2-theme) | Pergunta no terminal (Enter pula) |
 | `GRUB_THEME_ARGS` | 10 | Argumentos do instalador do tema GRUB (ex: `-b -t tela -s 1080p`) | Não instala tema no GRUB |
+| `CONFIG_MODE` | todos | O que fazer com o que o sistema já tem: `full` (aplica a configuração do repositório) ou `missing` (só instala e configura o que falta; ver caso de uso 4) | `full` |
 | `UPDATE_POLICY` | todos | O que fazer com o que já está instalado e tem versão nova: `ask`, `update` ou `keep` (ver caso de uso 5) | Menu: `ask`; `--all`: `keep` |
 | `WALLPAPER_IMAGE` | 12 | Imagem do papel de parede (caminho absoluto ou `~/...`) | Abre um seletor de arquivos (Cancelar mantém o atual) |
 | `AVATAR_IMAGE` | 12 | Imagem da foto do usuário (caminho absoluto ou `~/...`) | Abre um seletor de arquivos (Cancelar mantém a atual) |
@@ -65,6 +67,7 @@ cp .env.example .env && $EDITOR .env   # preencha todas as chaves
 - Os módulos rodam em ordem (01 a 12), sem limpar a tela, então a saída de cada um fica no histórico do terminal.
 - Por padrão o `--all` **não mexe no que já está instalado** (política `keep`): só instala o que falta e lista o que tem versão mais nova. Para ser perguntado, use `./app.sh --all --ask`; para atualizar tudo, `./app.sh --all --update` (caso de uso 5).
 - Rode a partir de um terminal **dentro da sessão do GNOME**: os módulos 11 e 12 aplicam as configurações pela sessão gráfica.
+- A máquina já está configurada em parte? Use `./app.sh --all --only-missing`: nada é removido e o que você já configurou fica (caso de uso 4).
 - Se um módulo falhar, os seguintes continuam. No fim aparece a lista dos módulos com falha, e o comando sai com código `1` (ou `0` se tudo deu certo).
 - Sem `.env`, o 01 e o 07 fazem perguntas no meio da execução, e o 12 abre o seletor de arquivos para o papel de parede e a foto do usuário (Cancelar mantém os atuais).
 - **Log completo** de cada execução em `~/.local/state/dotfiles/logs/setup-<data>.log` (pasta só sua, os 10 mais recentes são mantidos); o caminho aparece no resumo final. Leia com `less -R`. Só a saída é gravada: a senha digitada nunca vai para o log.
@@ -79,7 +82,7 @@ Digite o número do módulo, acompanhe a execução, pressione Enter para voltar
 **Interface gráfica** (`./app.sh --gui`): uma janela nativa do GNOME (GTK 4 + libadwaita) com os mesmos módulos, agrupados por categoria.
 - **Segue o tema do sistema**: claro ou escuro, a cor de destaque e o alto contraste mudam junto com o GNOME, na hora. No menu da janela (botão de três linhas), **System / Light / Dark** força o claro ou o escuro; a escolha fica salva.
 - Clique num módulo, confirme, e ele roda num **terminal embutido**: a senha do `sudo`, as perguntas de versão e o seletor de imagens do 12 aparecem ali, como no terminal. **Stop** envia Ctrl+C. No fim, a barra inferior mostra sucesso, interrupção ou o status de erro.
-- No topo: a política de versões (**Ask**, **Update** ou **Keep**; o valor inicial vem da flag ou do `.env`), **Run All** (o mesmo que `./app.sh --all`, com log) e **.env** (cria a partir do `.env.example` ou abre para editar).
+- No topo: a chave **Only What Is Missing** (o modo completar do caso de uso 4; ligada, ela muda a política para Keep), a política de versões (**Ask**, **Update** ou **Keep**; os valores iniciais vêm das flags ou do `.env`), **Run All** (o mesmo que `./app.sh --all`, com log) e **.env** (cria a partir do `.env.example` ou abre para editar).
 - **Add to Applications Menu**, no menu da janela, cria o atalho no menu de aplicativos do GNOME; **Open Logs Folder** abre os logs do `--all`.
 - Fora do GNOME, um aviso no topo lembra que as etapas do GNOME serão puladas.
 
@@ -89,8 +92,37 @@ bash scripts/05-flatpakPrograms.sh
 ```
 Útil em scripts próprios ou para repetir uma única etapa. Cada módulo funciona sozinho: dependências básicas (git, curl, flatpak, zsh) são instaladas se faltarem.
 
-### 4. Reparar ou completar uma instalação interrompida
-Rode o mesmo módulo (ou o `--all`) de novo. O que já foi feito é detectado e pulado: pacotes instalados, repositórios configurados, clones existentes, fontes, temas, Node LTS e a chave SSH. O que já existe só é atualizado conforme a política de versões (caso de uso 5).
+### 4. Completar um sistema já configurado (ou uma instalação interrompida)
+Para uma instalação interrompida, rode o mesmo módulo (ou o `--all`) de novo. O que já foi feito é detectado e pulado: pacotes instalados, repositórios configurados, clones existentes, fontes, temas, Node LTS e a chave SSH. O que já existe só é atualizado conforme a política de versões (caso de uso 5).
+
+Numa máquina **que você já configurou em parte** (à mão ou com outra ferramenta), use o **modo completar**, que instala e configura só o que falta:
+```bash
+./app.sh --all --only-missing   # ou ./app.sh --only-missing para escolher os módulos
+```
+Na interface gráfica, é a chave **Only What Is Missing**. Para deixar como padrão, use `CONFIG_MODE=missing` no `.env`; `--full` volta ao comportamento normal numa execução.
+
+As regras do modo completar:
+1. **Instala só o que falta**: pacotes, Flatpaks, repositórios, temas, fontes, ferramentas e extensões que ainda não existem.
+2. **Não desinstala nada**: o LibreOffice e o bloatware do GNOME ficam. (A troca do `ffmpeg-free` pelo `ffmpeg` completo continua: ela só acrescenta codecs.)
+3. **Não atualiza**: a política de versões passa a ser `keep`, a menos que você escolha outra com `--ask`/`--update` ou no `.env`.
+4. **Não sobrescreve**: arquivos só são criados se não existem, e chaves só são gravadas se ainda estão no padrão. O que você personalizou fica.
+5. **Ajustes que sempre têm valor ficam como estão** (shell padrão, GRUB, tela de boot, papel de parede, serviço do Docker), exceto quando o programa é instalado na mesma execução: um Docker recém-instalado é habilitado, e um zsh recém-instalado vira o shell padrão.
+
+O que muda em cada módulo:
+
+| Módulo | No modo completar |
+| --- | --- |
+| 01 | Clona só os forks que faltam; se todos já existem, nem pede o usuário do GitHub |
+| 04 | Não remove nenhum programa; instala os que faltam |
+| 06 | Mantém os arquivos de repositório que já existem (`vscode.repo` etc.) e o estado do repositório do Chrome se ele já está instalado; serviço e grupo do Docker só são configurados se o Docker foi instalado agora |
+| 07 | Mantém nome, e-mail, branch padrão e cores do Git já definidos, sem perguntar; grava só os que faltam |
+| 08 | Mantém o seu `~/.zshrc` (cria se não existir) e o shell padrão |
+| 10 | Instala os temas que faltam; mantém as configurações do GRUB, um tema do GRUB que você já usa e a tela de boot atual |
+| 11 | Instala as extensões que faltam; aplica só as configurações do GNOME que você ainda não definiu; acrescenta à sua lista de extensões ativas as do repositório que você não ativou nem desativou |
+| 12 | Mantém o papel de parede e a foto que você já escolheu; só pergunta o que ainda está no padrão |
+| 02, 03, 05, 09 | Iguais: só instalam o que falta (o 03 só lista as atualizações, pela política `keep`) |
+
+Cada item mantido aparece na saída como "Only-missing mode: keeping ...". Os Flatpaks e pacotes da lista que você desinstalou de propósito voltam a ser instalados (não há como distinguir "nunca instalado" de "removido"); para evitar, rode pelo menu só os módulos que quiser.
 
 ### 5. Controlar versões do que já está instalado
 Quando um pacote, aplicativo, linguagem, tema, fonte, plugin ou extensão **já está instalado e existe versão mais nova**, o app segue uma de três políticas:
@@ -231,7 +263,7 @@ No Fedora, o pacote `malcontent` (controle parental) **não** é removido, porqu
 **Fora do GNOME**, cada módulo pula a sua parte do GNOME e avisa ("GNOME not detected"): o 01 não clona os forks das extensões, o 04 não remove o bloatware do GNOME (só o LibreOffice) nem instala o GNOME Tweaks, o 05 não instala o Extension Manager, o 10 não instala os temas (GRUB e Plymouth continuam), e o 11 e o 12 terminam sem fazer nada. O GNOME é detectado quando o GNOME Shell está instalado e a sessão gráfica é GNOME (`XDG_CURRENT_DESKTOP`); rodando por TTY ou SSH, basta o GNOME Shell estar instalado.
 
 ## O que o projeto altera no sistema
-Transparência sobre tudo o que sai do `$HOME`:
+Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de uso 4, nada é removido e o que já existe fica como está):
 - **Pacotes**: instalações e remoções via dnf/apt e Flatpak de sistema.
 - **Repositórios**: RPM Fusion; `/etc/yum.repos.d/` (`vscode.repo`, `mongodb-org-8.0.repo`, `docker-ce.repo`); habilitação do repositório `google-chrome`; remoto Flathub habilitado e sem filtro.
 - **Serviços e grupos**: `docker` habilitado e iniciado; seu usuário entra no grupo `docker`.
@@ -251,6 +283,7 @@ Transparência sobre tudo o que sai do `$HOME`:
 - **O terminal continua no bash**: o novo shell vale a partir do próximo login.
 - **O tema do GRUB não foi instalado**: defina `GRUB_THEME_ARGS` e `GITHUB_USER` no `.env` e rode o 01 e o 10.
 - **O `--all` parou pedindo dados**: falta alguma chave no `.env` (ver [Configuração](#configuração-env)).
+- **"Only-missing mode: keeping ..."**: não é erro. No modo completar, o que você já tinha foi mantido; para aplicar a configuração do repositório nesse item, rode o módulo sem `--only-missing`.
 - **"GNOME not detected"**: a sessão gráfica não é o GNOME (ou o GNOME Shell não está instalado), e as etapas do GNOME foram puladas de propósito. Se você está no GNOME, rode de um terminal aberto dentro da sessão.
 - **"No D-Bus session found" nos módulos 11 e 12**: rode a partir de um terminal aberto dentro da sessão do GNOME, não por SSH ou TTY.
 - **"Could not install <extensão> for GNOME Shell N"**: a extensão ainda não tem versão para o seu GNOME (comum logo após uma atualização do Fedora). As configurações são aplicadas mesmo assim; rode o 11 de novo mais tarde.
@@ -321,6 +354,8 @@ Transparência sobre tudo o que sai do `$HOME`:
 | `record_version` / `recorded_version` | Registro de versão do que não vem de pacote (temas, fontes) |
 | `version_gt a b` | Compara versões (`24.9` < `24.21`) |
 | `UPDATE_POLICY` | Política em uso: `ask`, `update` ou `keep` |
+| `only_missing` / `CONFIG_MODE` | Verdadeiro no modo completar (`--only-missing`); `CONFIG_MODE` é `full` ou `missing` |
+| `keep_existing "o quê"` | Avisa que algo que já existia foi mantido (modo completar) |
 | `print_header "Titulo"` | Título visual de etapa |
 | `DOTFILES_DIR` | Raiz do repositório |
 | `C_GREEN`, `C_YELLOW`, `C_RED`, ... | Cores para mensagens |
@@ -329,6 +364,7 @@ Transparência sobre tudo o que sai do `$HOME`:
 - **Fail-fast**: `set -euo pipefail`; nada de `|| true` para esconder erros e nada de comandos críticos encadeados com `&&`.
 - **Idempotência**: cheque antes de instalar, clonar, baixar, anexar ou fazer backup.
 - **Política de versões**: o que já está instalado nunca é atualizado em silêncio. Use `install_packages`, `install_flatpaks`, `offer_git_updates` ou `confirm_updates`; para o que não vem de pacote, registre a versão com `record_version`. Consultas de versão pela rede nunca podem abortar o módulo (sem rede, a checagem é pulada e o que está instalado é mantido).
+- **Modo completar**: toda etapa que remove algo, sobrescreve um arquivo ou muda um ajuste que já existe verifica `only_missing` e, nele, mantém o que existe com `keep_existing` (regras em `.agents/rules/03-standards.md`).
 - **GNOME só no GNOME**: módulos que só configuram o GNOME chamam `require_gnome`; etapas do GNOME em outros módulos ficam dentro de `gnome_only`. O `tools/check.sh` falha se um módulo usar `gsettings`, `dconf` ou `gnome-extensions` sem essa proteção.
 - **Sem caminhos fixos**: use `$SCRIPT_DIR`, `$DOTFILES_DIR`, `$HOME` e `mktemp`.
 - **Sem dados pessoais no código**: use o `.env`.

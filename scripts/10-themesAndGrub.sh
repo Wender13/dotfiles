@@ -109,6 +109,13 @@ print_header "Configuring GRUB (Hidden + Theme)"
 
 GRUB_CONF="/etc/default/grub"
 
+# Backup only once, before the first change, so reruns keep the original file
+backup_grub_conf() {
+    if [ ! -f "${GRUB_CONF}.bak" ]; then
+        sudo cp -a "$GRUB_CONF" "${GRUB_CONF}.bak"
+    fi
+}
+
 # Replaces KEY=... in /etc/default/grub, or appends it when missing (Fedora has no GRUB_TIMEOUT_STYLE line)
 set_grub_option() {
     if grep -q "^$1=" "$GRUB_CONF"; then
@@ -119,14 +126,16 @@ set_grub_option() {
 }
 
 if [ -f "$GRUB_CONF" ]; then
-    # Backup only once, so reruns keep the original file
-    if [ ! -f "${GRUB_CONF}.bak" ]; then
-        sudo cp -a "$GRUB_CONF" "${GRUB_CONF}.bak"
+    grub_changed=0
+    if only_missing; then
+        keep_existing "the GRUB menu settings (timeout and style)"
+    else
+        backup_grub_conf
+        # Hide GRUB but keep it ready
+        set_grub_option GRUB_TIMEOUT 0
+        set_grub_option GRUB_TIMEOUT_STYLE hidden
+        grub_changed=1
     fi
-
-    # Hide GRUB but keep it ready
-    set_grub_option GRUB_TIMEOUT 0
-    set_grub_option GRUB_TIMEOUT_STYLE hidden
 
     # Custom GRUB theme (cloned by 01-setupEnv.sh). Without arguments its installer
     # opens an interactive dialog, so the options come from GRUB_THEME_ARGS in .env.
@@ -135,6 +144,9 @@ if [ -f "$GRUB_CONF" ]; then
         echo -e "${C_YELLOW}GRUB_THEME_ARGS not set in .env. Skipping custom GRUB theme.${C_RESET}"
     elif [ ! -x "$GRUB_THEME_DIR/install.sh" ]; then
         echo -e "${C_YELLOW}GRUB theme repository not found at $GRUB_THEME_DIR (run 01-setupEnv.sh). Skipping.${C_RESET}"
+    elif only_missing && [ "$(recorded_version grub-theme)" = "desconhecida" ] && grep -q '^GRUB_THEME=' "$GRUB_CONF"; then
+        # A theme this project did not install
+        keep_existing "the GRUB theme already configured ($(sed -n 's/^GRUB_THEME=//p' "$GRUB_CONF"))"
     else
         # Installed state = fork commit + options; a new commit (pulled by module 01) or new
         # options count as a newer version
@@ -153,18 +165,22 @@ if [ -f "$GRUB_CONF" ]; then
         if [ "$install_grub_theme" -eq 1 ]; then
             echo "Installing custom GRUB theme..."
             read -r -a grub_theme_args <<< "$GRUB_THEME_ARGS"
+            backup_grub_conf
             (cd "$GRUB_THEME_DIR" && sudo ./install.sh "${grub_theme_args[@]}")
             record_version grub-theme "$grub_state"
+            grub_changed=1
         fi
     fi
 
-    echo "Updating GRUB..."
-    if is_apt; then
-        sudo update-grub
-    elif is_dnf; then
-        # Fedora 34+: /boot/efi/EFI/fedora/grub.cfg is a stub that chains to this file.
-        # Never write the full config over that stub.
-        sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+    if [ "$grub_changed" -eq 1 ]; then
+        echo "Updating GRUB..."
+        if is_apt; then
+            sudo update-grub
+        elif is_dnf; then
+            # Fedora 34+: /boot/efi/EFI/fedora/grub.cfg is a stub that chains to this file.
+            # Never write the full config over that stub.
+            sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+        fi
     fi
 else
     echo -e "${C_YELLOW}$GRUB_CONF not found (systemd-boot?). Skipping GRUB.${C_RESET}"
@@ -210,7 +226,9 @@ install_plymouth_files() {
     record_version "plymouth-$PLYMOUTH_THEME" "$(git -C "$temp_dir/plymouth-themes" rev-parse --short=12 HEAD)"
 }
 
-if [ "$(current_plymouth_theme)" != "$PLYMOUTH_THEME" ]; then
+if only_missing && [ "$(current_plymouth_theme)" != "$PLYMOUTH_THEME" ]; then
+    keep_existing "the current boot splash ($(current_plymouth_theme))"
+elif [ "$(current_plymouth_theme)" != "$PLYMOUTH_THEME" ]; then
     if [ ! -d "/usr/share/plymouth/themes/$PLYMOUTH_THEME" ]; then
         install_plymouth_files
     fi

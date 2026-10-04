@@ -6,7 +6,8 @@ happens in an embedded terminal, so sudo passwords, update questions, file choos
 behave exactly as in the terminal menu. libadwaita follows the system style (light or dark,
 accent color, high contrast); the main menu can also force light or dark.
 
-Start it with ./app.sh --gui, which resolves the update policy (flag > .env > ask).
+Start it with ./app.sh --gui, which resolves the update policy and the config mode
+(flag > .env > default).
 """
 
 import os
@@ -102,17 +103,31 @@ def discover_modules():
     return modules
 
 
-def initial_policy():
-    """app.sh --gui passes the resolved policy; started on its own, .env or "ask" decide."""
-    policy = os.environ.get("DOTFILES_UPDATE_POLICY", "")
+def env_file_value(key):
+    """A key of .env, read the way app.sh reads it (the file is sourced by bash)."""
     env_file = ROOT / ".env"
-    if not policy and env_file.is_file():
-        result = subprocess.run(
-            ["bash", "-c", 'source "$1" > /dev/null 2>&1; printf "%s" "${UPDATE_POLICY:-}"', "_", str(env_file)],
-            capture_output=True, text=True, check=False,
-        )
-        policy = result.stdout.strip()
-    return policy if policy in [p[0] for p in POLICIES] else "ask"
+    if not env_file.is_file():
+        return ""
+    result = subprocess.run(
+        ["bash", "-c", 'source "$1" > /dev/null 2>&1; printf "%s" "${!2:-}"', "_", str(env_file), key],
+        capture_output=True, text=True, check=False,
+    )
+    return result.stdout.strip()
+
+
+def initial_config_mode():
+    """app.sh --gui passes the resolved mode; started on its own, .env or "full" decide."""
+    mode = os.environ.get("DOTFILES_CONFIG_MODE") or env_file_value("CONFIG_MODE")
+    return mode if mode in ("full", "missing") else "full"
+
+
+def initial_policy(config_mode):
+    """app.sh --gui passes the resolved policy; started on its own, .env decides, or "keep" in
+    the only-missing mode and "ask" otherwise."""
+    policy = os.environ.get("DOTFILES_UPDATE_POLICY") or env_file_value("UPDATE_POLICY")
+    if policy in [p[0] for p in POLICIES]:
+        return policy
+    return "keep" if config_mode == "missing" else "ask"
 
 
 def gnome_detected():
@@ -192,7 +207,8 @@ class SetupWindow(Adw.ApplicationWindow):
         super().__init__(application=app, title="Dotfiles", default_width=900, default_height=780)
         self.set_size_request(360, 480)
         self.modules = discover_modules()
-        self.policy = initial_policy()
+        self.config_mode = initial_config_mode()
+        self.policy = initial_policy(self.config_mode)
         self.running = False
 
         self.toasts = Adw.ToastOverlay()
@@ -253,6 +269,20 @@ class SetupWindow(Adw.ApplicationWindow):
             row.set_subtitle(POLICIES[row.get_selected()][2])
 
         policy_row.connect("notify::selected", on_policy)
+
+        missing_row = Adw.SwitchRow(use_markup=False, active=self.config_mode == "missing")
+        missing_row.set_title("Only What Is Missing")
+        missing_row.set_subtitle("For a system already set up: installs and configures only what is "
+                                 "missing, removes nothing and keeps every setting you have")
+
+        def on_missing(row, _param):
+            self.config_mode = "missing" if row.get_active() else "full"
+            if row.get_active():
+                # Completing a system is not updating it (same default as --only-missing)
+                policy_row.set_selected(names.index("keep"))
+
+        missing_row.connect("notify::active", on_missing)
+        group.add(missing_row)
         group.add(policy_row)
 
         # use_markup=False before any text: descriptions may contain "&" (GRUB & Plymouth)
@@ -419,7 +449,7 @@ class SetupWindow(Adw.ApplicationWindow):
         self.run_page.set_can_pop(False)
         self.nav.push(self.run_page)
 
-        env = {**os.environ, "DOTFILES_UPDATE_POLICY": self.policy}
+        env = {**os.environ, "DOTFILES_UPDATE_POLICY": self.policy, "DOTFILES_CONFIG_MODE": self.config_mode}
         self.terminal.spawn_async(
             Vte.PtyFlags.DEFAULT, str(ROOT), argv, [f"{k}={v}" for k, v in env.items()],
             GLib.SpawnFlags.DEFAULT, None, None, -1, None, self._on_spawned, None,
@@ -456,6 +486,15 @@ class SetupWindow(Adw.ApplicationWindow):
     def _policy_description(self):
         return next(description for name, _, description in POLICIES if name == self.policy)
 
+    def _settings_summary(self):
+        mode = ("Only what is missing: nothing is removed and your settings are kept."
+                if self.config_mode == "missing" else "Full: applies the repository configuration.")
+        return f"{mode}\nUpdates: {self._policy_description().lower()}."
+
+    def _run_subtitle(self, name):
+        mode = "only missing" if self.config_mode == "missing" else "full"
+        return f"{name}  ·  {mode}  ·  {self.policy}"
+
     def _confirm(self, heading, body, response_label, on_confirm):
         dialog = Adw.AlertDialog(heading=heading, body=body)
         dialog.add_response("cancel", "Cancel")
@@ -470,9 +509,9 @@ class SetupWindow(Adw.ApplicationWindow):
         self._confirm(
             module.description,
             f"{module.name} may install, remove or change software and ask for your sudo "
-            f"password in the terminal.\n\nUpdates: {self._policy_description().lower()}.",
+            f"password in the terminal.\n\n{self._settings_summary()}",
             "Run",
-            lambda: self.run(module.description, f"{module.name}  ·  {self.policy}", ["bash", str(module.path)]),
+            lambda: self.run(module.description, self._run_subtitle(module.name), ["bash", str(module.path)]),
         )
 
     def _confirm_run_all(self):
@@ -480,10 +519,11 @@ class SetupWindow(Adw.ApplicationWindow):
             "Run every module?",
             f"The {len(self.modules)} modules run in order. The sudo password is asked once, a failing "
             f"module does not stop the next ones, and the run is logged in {home_relative(LOG_DIR)}."
-            f"\n\nUpdates: {self._policy_description().lower()}.",
+            f"\n\n{self._settings_summary()}",
             "Run All",
-            lambda: self.run("Every module", f"./app.sh --all --{self.policy}",
-                             [str(ROOT / "app.sh"), "--all", f"--{self.policy}"]),
+            lambda: self.run("Every module", self._run_subtitle("./app.sh --all"),
+                             [str(ROOT / "app.sh"), "--all", f"--{self.policy}",
+                              "--only-missing" if self.config_mode == "missing" else "--full"]),
         )
 
     def _on_close_request(self, _window):

@@ -116,6 +116,8 @@ show_menu() {
     _center "$info_col"   "${#info_plain}"
     local policy_plain="versoes -> $POLICY_LABEL"
     _center "${C_DIM}${policy_plain}${C_RESET}" "${#policy_plain}"
+    local config_plain="modo -> $CONFIG_LABEL"
+    _center "${C_DIM}${config_plain}${C_RESET}" "${#config_plain}"
     _empty
 
     # Consecutive modules with the same CATEGORY share one section header
@@ -193,7 +195,7 @@ start_sudo_keepalive() {
 
 usage() {
     cat <<EOF
-Usage: ./app.sh [--all | --gui] [--ask | --update | --keep]
+Usage: ./app.sh [--all | --gui] [--ask | --update | --keep] [--full | --only-missing]
        ./app.sh --help
   (no option)  Interactive menu
   --all        Run every module in order, without the menu (headless)
@@ -206,6 +208,13 @@ Usage: ./app.sh [--all | --gui] [--ask | --update | --keep]
                (default of --all)
   UPDATE_POLICY=ask|update|keep in .env changes the default; a flag overrides it.
 
+  What to do with what the system already has:
+  --full          Apply the repository configuration (default)
+  --only-missing  Complete a system that is already partly set up: install what is
+                  missing, remove nothing, keep every setting that already exists
+                  (implies --keep unless a policy is chosen)
+  CONFIG_MODE=full|missing in .env changes the default; a flag overrides it.
+
   --help       Show this help
 EOF
 }
@@ -213,6 +222,7 @@ EOF
 # ─── Arguments ────────────────────────────────────────────────────────────────
 MODE="menu"
 POLICY_FLAG=""
+CONFIG_FLAG=""
 for arg in "$@"; do
     case "$arg" in
         --all|--gui)
@@ -229,6 +239,15 @@ for arg in "$@"; do
             fi
             POLICY_FLAG="${arg#--}"
             ;;
+        --full|--only-missing)
+            mode_value="full"
+            [ "$arg" = "--only-missing" ] && mode_value="missing"
+            if [ -n "$CONFIG_FLAG" ] && [ "$CONFIG_FLAG" != "$mode_value" ]; then
+                printf "${C_RED}Choose only one of --full and --only-missing.${C_RESET}\n" >&2
+                exit 2
+            fi
+            CONFIG_FLAG="$mode_value"
+            ;;
         -h|--help) usage; exit 0 ;;
         *)
             printf "${C_RED}Unknown option: %s${C_RESET}\n" "$arg" >&2
@@ -238,17 +257,32 @@ for arg in "$@"; do
     esac
 done
 
-# Update policy: flag > UPDATE_POLICY in .env > default (menu: ask, --all: keep)
+# Config mode: flag > CONFIG_MODE in .env > full
 ENV_FILE="$(dirname "$(realpath "$0")")/.env"
-env_policy=""
-if [ -f "$ENV_FILE" ]; then
-    env_policy="$(bash -c 'source "$1" > /dev/null 2>&1; printf "%s" "${UPDATE_POLICY:-}"' _ "$ENV_FILE")"
-fi
+env_value() {
+    [ -f "$ENV_FILE" ] || return 0
+    bash -c 'source "$1" > /dev/null 2>&1; printf "%s" "${!2:-}"' _ "$ENV_FILE" "$1"
+}
+CONFIG_MODE="${CONFIG_FLAG:-$(env_value CONFIG_MODE)}"
+case "${CONFIG_MODE:=full}" in
+    full)    CONFIG_LABEL="full: aplica a configuracao do repositorio" ;;
+    missing) CONFIG_LABEL="only-missing: so instala e configura o que falta" ;;
+    *)
+        printf "${C_RED}Invalid CONFIG_MODE '%s' in .env (use full or missing).${C_RESET}\n" "$CONFIG_MODE" >&2
+        exit 2
+        ;;
+esac
+# Read by scripts/lib.sh in every module
+export DOTFILES_CONFIG_MODE="$CONFIG_MODE"
+
+# Update policy: flag > UPDATE_POLICY in .env > default (menu: ask; --all and
+# --only-missing: keep, since completing a system is not updating it)
+env_policy="$(env_value UPDATE_POLICY)"
 if [ -n "$POLICY_FLAG" ]; then
     UPDATE_POLICY="$POLICY_FLAG"
 elif [ -n "$env_policy" ]; then
     UPDATE_POLICY="$env_policy"
-elif [ "$MODE" = "all" ]; then
+elif [ "$MODE" = "all" ] || [ "$CONFIG_MODE" = "missing" ]; then
     UPDATE_POLICY="keep"
 else
     UPDATE_POLICY="ask"
@@ -298,6 +332,7 @@ if [ "$MODE" = "all" ]; then
     HEADLESS=1
     echo -e "${C_BLUE}${C_BOLD}>> Rodando em Modo Headless (--all)${C_RESET}"
     echo -e "${C_DIM}>> Versoes: $POLICY_LABEL${C_RESET}"
+    echo -e "${C_DIM}>> Modo: $CONFIG_LABEL${C_RESET}"
     start_sudo_keepalive
 
     failed=()

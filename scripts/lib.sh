@@ -139,6 +139,37 @@ ensure_flathub() {
     sudo flatpak remote-modify --enable --no-filter flathub
 }
 
+# ─── Config mode ──────────────────────────────────────────────────────────────
+# What happens to what the system already has:
+#   full    - apply the repository configuration (the original behavior)
+#   missing - complete a system that is already partly set up: install what is missing,
+#             remove nothing, and set only what is still unset (files that do not exist,
+#             git and dconf keys still at their default). Settings that always have a
+#             value (default shell, GRUB, boot splash, wallpaper, services) are kept,
+#             unless their software was installed by the same run.
+# app.sh passes it in DOTFILES_CONFIG_MODE (--full/--only-missing or CONFIG_MODE in .env).
+resolve_config_mode() {
+    local mode="${DOTFILES_CONFIG_MODE:-}"
+    if [ -z "$mode" ] && [ -f "$DOTFILES_DIR/.env" ]; then
+        mode="$(bash -c 'source "$1" > /dev/null 2>&1; printf "%s" "${CONFIG_MODE:-}"' _ "$DOTFILES_DIR/.env")"
+    fi
+    case "${mode:-full}" in
+        full|missing) CONFIG_MODE="${mode:-full}" ;;
+        *)
+            echo -e "${C_RED}Invalid config mode '$mode' (use full or missing).${C_RESET}" >&2
+            exit 1
+            ;;
+    esac
+}
+resolve_config_mode
+
+only_missing() { [ "$CONFIG_MODE" = "missing" ]; }
+
+# Says that an existing setting was left as it is (only-missing mode)
+keep_existing() {
+    echo -e "${C_YELLOW}Only-missing mode: keeping $1.${C_RESET}"
+}
+
 # ─── Update policy ────────────────────────────────────────────────────────────
 # What happens when something is already installed and a newer version exists:
 #   ask    - list "current -> new", warn and ask once per group (default answer: keep)
@@ -146,6 +177,7 @@ ensure_flathub() {
 #   keep   - never touch what is installed; only what is missing gets installed
 # app.sh passes it in DOTFILES_UPDATE_POLICY (--ask/--update/--keep or UPDATE_POLICY
 # in .env). A module run on its own reads .env, and asks only when on a terminal.
+# The only-missing mode defaults to keep: updating is not completing.
 UPDATE_WARNING="Atencao: versoes novas podem mudar comportamento ou quebrar recursos (configuracoes, plugins, compatibilidade de projetos)."
 VERSIONS_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/versions"
 
@@ -155,7 +187,7 @@ resolve_update_policy() {
         policy="$(bash -c 'source "$1" > /dev/null 2>&1; printf "%s" "${UPDATE_POLICY:-}"' _ "$DOTFILES_DIR/.env")"
     fi
     if [ -z "$policy" ]; then
-        if [ -t 0 ]; then policy="ask"; else policy="keep"; fi
+        if only_missing || [ ! -t 0 ]; then policy="keep"; else policy="ask"; fi
     fi
     case "$policy" in
         ask|update|keep) ;;

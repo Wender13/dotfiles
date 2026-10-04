@@ -9,6 +9,11 @@ detect_distro
 
 print_header "Setting up ZSH and Oh My Zsh"
 
+# Only-missing mode changes the default shell only when zsh is installed by this run
+zsh_preinstalled=0
+if command -v zsh &> /dev/null; then
+    zsh_preinstalled=1
+fi
 ensure_command zsh zsh zsh
 ensure_command git git git
 ensure_command curl curl curl
@@ -105,12 +110,15 @@ fi
 print_header "Setting ZSH as default shell"
 
 zsh_path="$(command -v zsh)"
-if [ "$(getent passwd "$USER" | cut -d: -f7)" != "$zsh_path" ]; then
+current_shell="$(getent passwd "$USER" | cut -d: -f7)"
+if [ "$current_shell" = "$zsh_path" ]; then
+    echo -e "${C_YELLOW}ZSH is already the default shell.${C_RESET}"
+elif only_missing && [ "$zsh_preinstalled" -eq 1 ]; then
+    keep_existing "your default shell ($current_shell)"
+else
     # usermod through sudo avoids chsh's own password prompt (keeps --all unattended)
     sudo usermod --shell "$zsh_path" "$USER"
     echo -e "${C_YELLOW}Default shell changed. It applies on the next login.${C_RESET}"
-else
-    echo -e "${C_YELLOW}ZSH is already the default shell.${C_RESET}"
 fi
 
 # Fix for bat on Ubuntu
@@ -121,11 +129,17 @@ fi
 
 print_header "Copying .zshrc"
 
-if [ -f "$HOME/.zshrc" ] && ! cmp -s "$DOTFILES_DIR/terminal/.zshrc" "$HOME/.zshrc"; then
-    backup="$HOME/.zshrc.bak.$(date +%Y%m%d%H%M%S)"
-    cp "$HOME/.zshrc" "$backup"
-    echo -e "${C_YELLOW}Existing .zshrc differs from the repo version. Backup saved to $backup${C_RESET}"
+if [ -f "$HOME/.zshrc" ] && cmp -s "$DOTFILES_DIR/terminal/.zshrc" "$HOME/.zshrc"; then
+    echo -e "${C_YELLOW}~/.zshrc is already the repo version.${C_RESET}"
+elif [ -f "$HOME/.zshrc" ] && only_missing; then
+    keep_existing "your ~/.zshrc (compare with: diff ~/.zshrc $DOTFILES_DIR/terminal/.zshrc)"
+else
+    if [ -f "$HOME/.zshrc" ]; then
+        backup="$HOME/.zshrc.bak.$(date +%Y%m%d%H%M%S)"
+        cp "$HOME/.zshrc" "$backup"
+        echo -e "${C_YELLOW}Existing .zshrc differs from the repo version. Backup saved to $backup${C_RESET}"
+    fi
+    cp "$DOTFILES_DIR/terminal/.zshrc" "$HOME/.zshrc"
 fi
-cp "$DOTFILES_DIR/terminal/.zshrc" "$HOME/.zshrc"
 
 echo -e "${C_GREEN}ZSH setup complete.${C_RESET}"

@@ -11,6 +11,7 @@ Você está auxiliando no desenvolvimento de uma ferramenta de automação de Do
 ## 2. Qualidade e Resiliência (Fail-Fast)
 - **Idempotência**: todos os scripts devem poder rodar infinitas vezes sem quebrar o sistema. Use `mkdir -p` e verifique a existência de arquivos, pacotes e programas antes de baixar ou instalar.
 - **Versões**: nunca atualize em silêncio o que já está instalado. Use as funções da política de versões do `lib.sh`, que mostram `atual -> nova`, avisam que versões novas podem quebrar recursos e respeitam `--ask`/`--update`/`--keep`.
+- **Modo completar** (`--only-missing`, `CONFIG_MODE=missing`): para máquinas já configuradas em parte. Toda etapa que remove algo, sobrescreve um arquivo ou muda um ajuste existente verifica `only_missing` e, nele, mantém o que existe (`keep_existing`). Regras em `.agents/rules/03-standards.md`, seção 2.2.
 - **Set e Erros**: todo script em `scripts/` DEVE iniciar com `set -euo pipefail`. Não use `|| true` para esconder erros nem encadeie comandos críticos com `&&`.
 - **Caminhos**: evite caminhos absolutos hardcoded e o diretório atual. Use `$SCRIPT_DIR`, `$DOTFILES_DIR` e `mktemp`.
 - **Headless**: nenhum passo pode exigir interação quando o dado existe no `.env`.

@@ -113,7 +113,12 @@ done
 # ─── Extension data files ─────────────────────────────────────────────────────
 if compgen -G "$GNOME_DIR/burn-my-windows/profiles/*.conf" > /dev/null; then
     mkdir -p "$HOME/.config/burn-my-windows/profiles"
-    cp "$GNOME_DIR"/burn-my-windows/profiles/*.conf "$HOME/.config/burn-my-windows/profiles/"
+    if only_missing; then
+        # Profiles you already have are kept
+        cp --update=none "$GNOME_DIR"/burn-my-windows/profiles/*.conf "$HOME/.config/burn-my-windows/profiles/"
+    else
+        cp "$GNOME_DIR"/burn-my-windows/profiles/*.conf "$HOME/.config/burn-my-windows/profiles/"
+    fi
 fi
 
 # ─── Settings ─────────────────────────────────────────────────────────────────
@@ -121,10 +126,65 @@ fi
 # and every shortcut. Loading only sets the listed keys; reruns are harmless.
 print_header "Applying GNOME settings and shortcuts"
 
+# Only-missing mode: reads a dconf dump on stdin and keeps only the keys you have not set
+# yet ('dconf read' prints nothing for a key still at its default). For enabled-extensions,
+# the repository extensions you have neither enabled nor disabled are added to your list.
+unset_keys_only() {
+    local section="" line key current merged
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^\[(.*)\]$ ]]; then
+            section="${BASH_REMATCH[1]}"
+            echo "$line"
+            continue
+        fi
+        if [[ "$line" == \#* ]] || [[ "$line" != *=* ]]; then
+            echo "$line"
+            continue
+        fi
+        key="${line%%=*}"
+        current="$(dconf read "/$section/$key")"
+        if [ -z "$current" ]; then
+            echo "$line"
+        elif [ "$section/$key" = "org/gnome/shell/enabled-extensions" ]; then
+            merged="$(python3 - "$current" "${line#*=}" "$(dconf read /org/gnome/shell/disabled-extensions)" <<'EOF'
+import ast, sys
+
+def parse(value):
+    value = value.strip()
+    if value.startswith("@as"):
+        value = value[3:].strip()
+    return ast.literal_eval(value) if value else []
+
+current, repo, disabled = (parse(v) for v in sys.argv[1:4])
+added = [uuid for uuid in repo if uuid not in current and uuid not in disabled]
+if added:
+    print(repr(current + added))
+EOF
+)"
+            if [ -n "$merged" ]; then
+                echo "$key=$merged"
+            fi
+        fi
+    done
+}
+
+skipped=0
 for ini in "$GNOME_DIR"/dconf/*.ini; do
     echo "Loading $(basename "$ini")..."
-    sed "s|@HOME@|$HOME|g" "$ini" | dconf load /
+    if only_missing; then
+        settings="$(sed "s|@HOME@|$HOME|g" "$ini" | unset_keys_only)"
+        # grep -c exits 1 when it counts zero lines
+        total="$(grep -c '^[^#[].*=' "$ini")" || total=0
+        applied="$(grep -c '^[^#[].*=' <<< "$settings")" || applied=0
+        skipped=$((skipped + total - applied))
+        dconf load / <<< "$settings"
+    else
+        sed "s|@HOME@|$HOME|g" "$ini" | dconf load /
+    fi
 done
+if only_missing && [ "$skipped" -gt 0 ]; then
+    keep_existing "$skipped GNOME setting(s) you had already set"
+fi
 
 if [ ${#failed[@]} -gt 0 ]; then
     echo -e "${C_RED}Settings applied, but these extensions were not installed: ${failed[*]}${C_RESET}" >&2

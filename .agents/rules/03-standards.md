@@ -39,6 +39,16 @@ Nunca atualize em silêncio algo que já está instalado: versões novas podem q
 - **Rede**: consultas de versão nunca podem abortar o módulo. Use `var="$(comando)" || var=""` e trate o vazio como "não foi possível verificar", mantendo o que está instalado.
 - **Ferramentas que se atualizam sozinhas** (Claude Code, Antigravity CLI, Docker Desktop): apenas informe que já estão instaladas.
 
+## 2.2. Modo Completar (`--only-missing`)
+O modo `missing` serve para máquinas já configuradas em parte: instalar e configurar só o que falta, sem estragar o que o usuário já tem. Todo passo novo deve respeitá-lo:
+- **Instalar o que falta** funciona igual nos dois modos (as funções do `lib.sh` já pulam o que existe).
+- **Remover** (pacotes, arquivos): só no modo `full`. No `missing`, `keep_existing "..."` e nada é removido.
+- **Sobrescrever arquivos** (configurações do usuário, arquivos de repositório): no `missing`, só crie o arquivo se ele não existir.
+- **Chaves de configuração** (git, dconf/gsettings): no `missing`, grave só as que ainda não foram definidas (`git config --get` vazio, `dconf read` vazio). Listas que o projeto precisa completar (ex: `enabled-extensions`) são mescladas, respeitando o que o usuário desativou.
+- **Ajustes que sempre têm valor** (shell padrão, GRUB, tela de boot, papel de parede, serviços, grupos): no `missing`, mantenha o atual, exceto quando o software dono do ajuste foi instalado na mesma execução (guarde o estado antes de instalar, como `docker_preinstalled` no 06 e `zsh_preinstalled` no 08).
+- Use `if only_missing && <já existe>; then keep_existing "..."; else <passo normal>; fi`. A política de versões padrão do `missing` é `keep`.
+- Teste os dois modos (`DOTFILES_CONFIG_MODE=full` e `missing`) com os falsos da seção 7, comparando o que cada um faria.
+
 ## 3. Modularidade e o `lib.sh`
 - **Não reinvente a roda**: use `detect_distro`, `is_apt`/`is_dnf`, `ensure_command`, `clone_if_missing`, `load_env`, `ensure_flathub` e as funções da política de versões (ver `02-architecture.md`). Lógica usada por mais de um módulo deve ir para o `lib.sh`.
 - **Feedback Visual**: não use `echo` seco para dar títulos a tarefas. Use `print_header "Minha Tarefa"` e as variáveis de cor (`$C_GREEN` para sucesso, `$C_YELLOW` para avisos e passos pulados, `$C_RED` para erros).
@@ -79,7 +89,7 @@ Quando uma IA for solicitada a "adicionar um novo passo na automação", ela dev
    detect_distro
    ```
    Um módulo que só configura o GNOME chama `require_gnome` logo depois do `detect_distro`.
-3. Escrever a lógica idempotente, com o ramo `dnf` seguindo `06-fedora.md` e as etapas do GNOME protegidas por `gnome_only` (seção 8).
+3. Escrever a lógica idempotente, com o ramo `dnf` seguindo `06-fedora.md`, as etapas do GNOME protegidas por `gnome_only` (seção 8) e o modo completar respeitado (seção 2.2).
 4. Dar permissão de execução (`chmod +x`), para o git registrar o modo `100755`.
 5. Não é preciso editar o `app.sh`: o menu descobre o módulo pelo cabeçalho.
 6. Atualizar a tabela de módulos em `02-architecture.md` e no `README.md`. Se o módulo ler uma nova chave do `.env`, adicioná-la ao `.env.example`.
