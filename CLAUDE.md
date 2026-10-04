@@ -12,7 +12,7 @@ A fonte de verdade das regras é a pasta `.agents/rules/` (formato do Antigravit
 
 4. **Idempotência**: Rodar um módulo várias vezes não pode quebrar nem duplicar nada. Cheque antes de instalar, clonar, baixar, anexar linhas ou fazer backup. O que já está instalado nunca é atualizado em silêncio: use as funções da política de versões do `lib.sh` (`install_packages`, `install_flatpaks`, `offer_git_updates`, `confirm_updates`), que respeitam `--ask`/`--update`/`--keep`.
 
-5. **Fedora Primeiro**: O alvo principal é o Fedora 41+ com dnf5. Nunca use sintaxe do dnf4 e valide todo nome de pacote antes de usá-lo (`.agents/rules/06-fedora.md`). O ramo apt é secundário e a família RHEL não é suportada.
+5. **Fedora Primeiro**: O alvo principal é o Fedora 41+ com dnf5. Nunca use sintaxe do dnf4 e valide todo nome de pacote antes de usá-lo (`.agents/rules/06-fedora.md`). O ramo apt é secundário e a família RHEL não é suportada. O desktop alvo é o GNOME: tudo que é específico dele (configurações, extensões, temas, apps do GNOME) passa por `require_gnome` (módulo inteiro) ou `gnome_only` (etapa) do `lib.sh`, e em outros desktops é pulado com aviso, nunca com erro.
 
 6. **Documentação Arquitetural Profunda**: Os arquivos em `.agents/rules/` trazem o contexto detalhado de arquitetura e padrões (eles servem tanto para o Antigravity quanto para você) e são importados abaixo.
 

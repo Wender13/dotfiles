@@ -78,7 +78,8 @@ Quando uma IA for solicitada a "adicionar um novo passo na automação", ela dev
    source "$SCRIPT_DIR/lib.sh"
    detect_distro
    ```
-3. Escrever a lógica idempotente, com o ramo `dnf` seguindo `06-fedora.md`.
+   Um módulo que só configura o GNOME chama `require_gnome` logo depois do `detect_distro`.
+3. Escrever a lógica idempotente, com o ramo `dnf` seguindo `06-fedora.md` e as etapas do GNOME protegidas por `gnome_only` (seção 8).
 4. Dar permissão de execução (`chmod +x`), para o git registrar o modo `100755`.
 5. Não é preciso editar o `app.sh`: o menu descobre o módulo pelo cabeçalho.
 6. Atualizar a tabela de módulos em `02-architecture.md` e no `README.md`. Se o módulo ler uma nova chave do `.env`, adicioná-la ao `.env.example`.
@@ -86,7 +87,7 @@ Quando uma IA for solicitada a "adicionar um novo passo na automação", ela dev
 
 ## 7. Validação Obrigatória Antes de Entregar
 NUNCA execute os módulos reais no sistema do usuário para testar: eles instalam pacotes, alteram `/etc` e o bootloader. Valide assim:
-1. **Verificações estáticas**: `bash tools/check.sh` (deve terminar em "All checks passed"). Cobre sintaxe (`bash -n`, `zsh -n`), shellcheck (local ou via podman), convenções dos módulos (cabeçalhos, limites de 24/44 caracteres, preâmbulo, permissão de execução), largura do menu, caminhos do `$HOME` e emojis.
+1. **Verificações estáticas**: `bash tools/check.sh` (deve terminar em "All checks passed"). Cobre sintaxe (`bash -n`, `zsh -n`), shellcheck (local ou via podman), convenções dos módulos (cabeçalhos, limites de 24/44 caracteres, preâmbulo, permissão de execução, proteção do GNOME), largura do menu, caminhos do `$HOME` e emojis.
 2. **Comportamento interativo** (Ctrl+C, prompts): teste num pseudo-terminal real (ex: `pty.fork()` do Python). Processos em segundo plano de um shell não interativo herdam o SIGINT ignorado, o que invalida testes de Ctrl+C feitos com `&`.
 3. **Pacotes dnf** (não exige root): `dnf repoquery --available <pacote>` para cada nome novo e `dnf install --assumeno <lista completa>` para a transação. Para repositórios ainda não configurados: `--repofrompath=<id>,<url> --repo=<id>`.
 4. **Remoções** (não exige root): `dnf remove --assumeno <pacotes>` para ver o que mais seria removido.
@@ -98,6 +99,8 @@ NUNCA execute os módulos reais no sistema do usuário para testar: eles instala
 10. **Harness de teste**: ao medir código de saída num pseudo-terminal, colha o processo com espera bloqueante; um `waitpid` com `WNOHANG` que ainda não terminou devolve status 0 e mascara falhas.
 
 ## 8. Configurações do GNOME
+- **Só no GNOME**: um módulo que só configura o GNOME chama `require_gnome` logo após o preâmbulo. Etapas do GNOME dentro de outros módulos (extensões, temas, apps como GNOME Tweaks e Extension Manager, remoção do bloatware do GNOME) ficam em `if gnome_only "descrição"; then ... fi`. Em outro desktop a etapa é pulada com aviso, nunca com erro. Use `is_gnome` (silencioso) só para decisões cujo aviso já sai em outro ponto (ex: o `sassc` do módulo 10). O `tools/check.sh` falha se um módulo usar `gsettings`, `dconf` ou `gnome-extensions` sem essas funções.
+- **Testar fora do GNOME**: rode o módulo com `XDG_CURRENT_DESKTOP=KDE` (e os falsos da seção 7). Com `XDG_CURRENT_DESKTOP=GNOME`, o terminal do agente ainda tem a sessão D-Bus real: sem `DBUS_SESSION_BUS_ADDRESS` apontando para um socket inexistente e `dconf`/`gsettings` falsos, o módulo 11 grava de verdade na sessão do usuário (e o `@HOME@` vira o `HOME` temporário).
 - Não edite `style/gnome/dconf/*.ini` nem `extensions.txt` à mão quando a mudança puder ser feita no GNOME e reexportada com `bash style/gnome/bin/export-gnome-settings.sh`.
 - Ao incluir uma nova seção do dconf no exportador, confira o conteúdo: o dconf guarda estado da máquina e dados pessoais (histórico de pastas, contas, credenciais de rede como `org/gnome/nm-applet/eap`). Inclua por lista de seções permitidas, nunca o dump inteiro. Os filtros de segredos do exportador (`SECRET_KEY_RE`, `SECRET_VALUE_RE`, `EMAIL_RE`) valem para todas as seções; ao ampliá-los ou mudá-los, teste com um dump sintético contendo segredos falsos (um `dconf` falso no `PATH` que imprime o dump) e confirme que a exportação real não muda.
 - Caminhos dentro do `$HOME` devem virar o marcador `@HOME@` (o exportador faz isso e falha se sobrar algum).

@@ -11,10 +11,7 @@ load_env
 # The images come from .env (WALLPAPER_IMAGE, AVATAR_IMAGE) or are chosen when the module
 # runs. They never go into the repository: it is public and pictures are personal.
 
-if ! command -v gnome-shell &>/dev/null; then
-    echo -e "${C_YELLOW}GNOME Shell not found. Nothing to configure.${C_RESET}"
-    exit 0
-fi
+require_gnome
 
 # gsettings writes through the session bus, so this must run inside the graphical session
 if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then

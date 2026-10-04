@@ -10,14 +10,18 @@ load_env
 
 print_header "Installing Theme Dependencies"
 
-# sassc compiles the Orchis CSS. inkscape/optipng are only used by the theme
+# sassc compiles the Orchis CSS (GNOME only). inkscape/optipng are only used by the theme
 # authors' asset render scripts, not by install.sh (Inkscape itself is a Flatpak).
 # The plymouth packages provide plymouth-set-default-theme and the script plugin.
+THEME_DEPS=()
+if is_gnome; then
+    THEME_DEPS+=(sassc)
+fi
 if is_apt; then
     sudo apt update
-    install_packages "10 - dependencias de temas" sassc plymouth plymouth-themes
+    install_packages "10 - dependencias de temas" "${THEME_DEPS[@]}" plymouth plymouth-themes
 elif is_dnf; then
-    install_packages "10 - dependencias de temas" sassc plymouth plymouth-plugin-script
+    install_packages "10 - dependencias de temas" "${THEME_DEPS[@]}" plymouth plymouth-plugin-script
 fi
 
 ensure_command git git git
@@ -70,6 +74,9 @@ THEMES=(
     "Tela-circle-icon-theme|https://github.com/vinceliuice/Tela-circle-icon-theme.git|Tela-circle|icon"
     "Vimix-cursors|https://github.com/vinceliuice/Vimix-cursors.git|Vimix-cursors|icon"
 )
+if ! gnome_only "the GNOME themes"; then
+    THEMES=()
+fi
 theme_lines=()
 theme_updates=()
 for entry in "${THEMES[@]}"; do

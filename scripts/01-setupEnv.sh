@@ -19,8 +19,8 @@ mkdir -p "$HOME/Dev/college_projects"
 
 echo -e "${C_GREEN}Folders created.${C_RESET}"
 
-# ─── GNOME extensions (personal forks) ───────────────────────────────────────
-print_header "Cloning personal GNOME customizations"
+# ─── Personal forks (GNOME extensions and GRUB theme) ────────────────────────
+print_header "Cloning personal repositories"
 
 # The GitHub user comes from .env (GITHUB_USER) or a prompt, never from the code.
 github_user="${GITHUB_USER:-}"
@@ -41,23 +41,19 @@ if [ -z "$github_user" ]; then
 else
     ensure_command git
 
-    clone_if_missing \
-        "https://github.com/$github_user/hidetopbar.git" \
-        "$HOME/Dev/linux_projects/gnome/extensions/hidetopbar"
+    forks=("$HOME/Dev/linux_projects/gnome/grub2/grub2-theme")
+    clone_if_missing "https://github.com/$github_user/grub2-theme.git" "${forks[0]}"
 
-    clone_if_missing \
-        "https://github.com/$github_user/gnome-shell-extension-lockkeys.git" \
-        "$HOME/Dev/linux_projects/gnome/extensions/gnome-shell-extension-lockkeys"
-
-    clone_if_missing \
-        "https://github.com/$github_user/grub2-theme.git" \
-        "$HOME/Dev/linux_projects/gnome/grub2/grub2-theme"
+    if gnome_only "the GNOME extension forks (hidetopbar, lockkeys)"; then
+        ext_dir="$HOME/Dev/linux_projects/gnome/extensions"
+        clone_if_missing "https://github.com/$github_user/hidetopbar.git" "$ext_dir/hidetopbar"
+        clone_if_missing "https://github.com/$github_user/gnome-shell-extension-lockkeys.git" \
+            "$ext_dir/gnome-shell-extension-lockkeys"
+        forks+=("$ext_dir/hidetopbar" "$ext_dir/gnome-shell-extension-lockkeys")
+    fi
 
     # These are working copies: only clean ones are fast-forwarded (see offer_git_updates)
-    offer_git_updates "Forks pessoais (GitHub)" \
-        "$HOME/Dev/linux_projects/gnome/extensions/hidetopbar" \
-        "$HOME/Dev/linux_projects/gnome/extensions/gnome-shell-extension-lockkeys" \
-        "$HOME/Dev/linux_projects/gnome/grub2/grub2-theme"
+    offer_git_updates "Forks pessoais (GitHub)" "${forks[@]}"
 fi
 
 echo -e "${C_GREEN}Environment setup complete.${C_RESET}"

@@ -20,6 +20,10 @@ Este projeto é uma ferramenta de automação pessoal (Dotfiles e Setup de Ambie
 - **Fedora Atomic (Silverblue, Kinoite...)**: não suportado; pacotes ali são aplicados com rpm-ostree, não dnf.
 - **RHEL, CentOS, Rocky, Alma**: não suportados. O ramo `dnf` depende de repositórios exclusivos do Fedora (RPM Fusion, fedora-workstation-repositories), e o `detect_distro` aborta nessas distribuições.
 
+## Desktop
+- **GNOME (alvo)**: configurações, extensões, temas e apps do GNOME só são aplicados quando o GNOME é detectado (`is_gnome` do `lib.sh`): GNOME Shell instalado e sessão gráfica GNOME (`XDG_CURRENT_DESKTOP` contém `GNOME`: `GNOME` no Fedora, `ubuntu:GNOME` no Ubuntu). Sem sessão gráfica (TTY, SSH), basta o GNOME Shell instalado.
+- **Outros desktops (KDE, Xfce, COSMIC...)**: as etapas do GNOME são puladas com um aviso, sem erro, e o restante (pacotes, Flatpaks, terminal, ambientes de dev, GRUB, Plymouth) roda normalmente. Pulados: os forks das extensões (01), a remoção do bloatware do GNOME e o GNOME Tweaks (04), o Extension Manager (05), os temas e o `sassc` (10) e os módulos 11 e 12 inteiros.
+
 ## Hierarquia e Prioridade de Pacotes
 A instalação de software obedece rigorosamente à seguinte ordem de preferência:
 1. **Repositórios Nativos (`apt` / `dnf`)**, incluindo repositórios oficiais de fornecedores com chave GPG (VSCode, Google Chrome, Docker, MongoDB), porque atualizam junto com o sistema.

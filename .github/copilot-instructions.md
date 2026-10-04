@@ -5,7 +5,8 @@ Você está auxiliando no desenvolvimento de uma ferramenta de automação de Do
 ## 1. Arquitetura e Modularidade
 - O arquivo `app.sh` é o menu interativo de entrada (e o modo `--all`, headless). NÃO coloque lógica de instalação nele.
 - Toda nova automação deve ser um script isolado em `scripts/NN-nome.sh`, com os cabeçalhos `# MENU_DESC:` (máximo 44 caracteres) e `# CATEGORY:`. O `app.sh` descobre os módulos sozinho; não há arrays para editar.
-- Use a biblioteca `scripts/lib.sh` (via `source`) para cores, detecção de distro (`detect_distro`, `is_apt`, `is_dnf`), `ensure_command`, `clone_if_missing`, `load_env`, `ensure_flathub` e a política de versões (`install_packages`, `install_flatpaks`, `offer_git_updates`, `confirm_updates`).
+- Use a biblioteca `scripts/lib.sh` (via `source`) para cores, detecção de distro (`detect_distro`, `is_apt`, `is_dnf`), detecção do GNOME (`is_gnome`, `gnome_only`, `require_gnome`), `ensure_command`, `clone_if_missing`, `load_env`, `ensure_flathub` e a política de versões (`install_packages`, `install_flatpaks`, `offer_git_updates`, `confirm_updates`).
+- O desktop alvo é o GNOME. Tudo que é específico dele (configurações, extensões, temas, apps do GNOME) passa por `require_gnome` (módulo inteiro) ou `if gnome_only "etapa"; then ... fi` (etapa); em outros desktops é pulado com aviso, nunca com erro.
 
 ## 2. Qualidade e Resiliência (Fail-Fast)
 - **Idempotência**: todos os scripts devem poder rodar infinitas vezes sem quebrar o sistema. Use `mkdir -p` e verifique a existência de arquivos, pacotes e programas antes de baixar ou instalar.

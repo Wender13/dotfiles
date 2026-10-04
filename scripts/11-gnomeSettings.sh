@@ -11,10 +11,7 @@ detect_distro
 # style/gnome/bin/export-gnome-settings.sh.
 GNOME_DIR="$DOTFILES_DIR/style/gnome"
 
-if ! command -v gnome-shell &>/dev/null; then
-    echo -e "${C_YELLOW}GNOME Shell not found. Nothing to configure.${C_RESET}"
-    exit 0
-fi
+require_gnome
 
 # dconf writes through the session bus, so this must run inside the graphical session
 if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then

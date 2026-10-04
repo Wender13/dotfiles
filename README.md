@@ -3,6 +3,7 @@
 Coleção de scripts Bash que transforma uma instalação limpa de Linux em um ambiente de desenvolvimento completo: programas, codecs, repositórios oficiais, ferramentas de linguagem, terminal, temas, extensões, configurações e atalhos do GNOME, e bootloader. A ideia é não precisar configurar nada à mão depois.
 
 - **Alvo principal**: Fedora 41 ou superior (dnf5), com GNOME. Validado no Fedora 44.
+- **Outros desktops** (KDE, Xfce, COSMIC...): o app detecta o GNOME e, fora dele, pula com um aviso tudo o que é do GNOME (configurações, extensões, temas, GNOME Tweaks, Extension Manager, papel de parede e foto). O resto funciona normalmente.
 - **Suporte secundário**: Debian, Ubuntu e derivados (apt). Validado por simulação num container Ubuntu 24.04, não numa instalação real.
 - **Não suportado**: RHEL, CentOS, Rocky e Alma (o ramo dnf depende de repositórios exclusivos do Fedora) e Fedora Atomic (Silverblue, Kinoite), onde pacotes são aplicados com rpm-ostree.
 
@@ -24,7 +25,7 @@ Todos os módulos são **idempotentes**: rodar de novo não duplica nada e compl
 ## Requisitos
 - Usuário comum com permissão de `sudo`. **Não execute como root nem com `sudo ./app.sh`**: os módulos instalam coisas no `$HOME` e pedem `sudo` só quando precisam (o projeto bloqueia a execução como root).
 - `git` para clonar o repositório e conexão com a internet.
-- Fedora Workstation (GNOME) para a experiência completa. Os módulos de temas e GRUB assumem GNOME e GRUB.
+- Fedora Workstation (GNOME) para a experiência completa. Em outros desktops, as etapas do GNOME são puladas (ver [Módulos](#módulos)). A parte de boot do módulo 10 assume GRUB; sem `/etc/default/grub`, ela é pulada.
 
 ## Início rápido
 ```bash
@@ -139,8 +140,8 @@ Os bancos de dados são apenas instalados; inicialização e serviços ficam a s
 
 ### 10. Personalizar o visual e o boot (módulos 01 e 10)
 1. Defina `GITHUB_USER` e `GRUB_THEME_ARGS` no `.env`.
-2. Rode o **01**: ele clona seus forks (extensões e tema GRUB) para `~/Dev/linux_projects/gnome/`.
-3. Rode o **10**: ele instala o tema GTK Orchis, os ícones Tela Circle e os cursores Vimix (pulando os já instalados), oculta o menu do GRUB (`GRUB_TIMEOUT=0`, `GRUB_TIMEOUT_STYLE=hidden`), instala o tema do GRUB e regenera a configuração. Também instala a tela de boot **Plymouth deus_ex** (do pack_2 de [adi1090x/plymouth-themes](https://github.com/adi1090x/plymouth-themes), baixando só esse tema) e reconstrói o initramfs; se ela já for a ativa, nada é feito.
+2. Rode o **01**: ele clona seus forks (extensões, só no GNOME, e tema GRUB) para `~/Dev/linux_projects/gnome/`.
+3. Rode o **10**: ele instala o tema GTK Orchis, os ícones Tela Circle e os cursores Vimix (só no GNOME, pulando os já instalados), oculta o menu do GRUB (`GRUB_TIMEOUT=0`, `GRUB_TIMEOUT_STYLE=hidden`), instala o tema do GRUB e regenera a configuração. Também instala a tela de boot **Plymouth deus_ex** (do pack_2 de [adi1090x/plymouth-themes](https://github.com/adi1090x/plymouth-themes), baixando só esse tema) e reconstrói o initramfs; se ela já for a ativa, nada é feito.
 4. Rode o **11** para ativar os temas e o restante das configurações (caso de uso 12).
 
 O `/etc/default/grub` original é salvo uma única vez como `/etc/default/grub.bak`. Para restaurá-lo:
@@ -151,7 +152,7 @@ sudo grub2-mkconfig -o /boot/grub2/grub.cfg
 O menu do GRUB continua acessível: no Fedora, ele reaparece automaticamente após uma falha de boot.
 
 ### 11. Instalar os aplicativos de desktop (módulo 05)
-Via Flathub (atualização automática): Obsidian, Postman, Insomnia, OnlyOffice, Discord, DBeaver, MongoDB Compass, LocalSend, Extension Manager, Prism Launcher, Zotero, Podman Desktop e Inkscape.
+Via Flathub (atualização automática): Obsidian, Postman, Insomnia, OnlyOffice, Discord, DBeaver, MongoDB Compass, LocalSend, Extension Manager (só no GNOME), Prism Launcher, Zotero, Podman Desktop e Inkscape.
 
 ### 12. Restaurar extensões, configurações e atalhos do GNOME (módulo 11)
 Deixa o GNOME igual ao da máquina de onde as configurações foram capturadas, sem abrir o Settings nem o Extension Manager:
@@ -162,7 +163,7 @@ Deixa o GNOME igual ao da máquina de onde as configurações foram capturadas, 
 - **Atalhos**: todos os do sistema e os personalizados, por exemplo `Super+T` para o terminal, `Super+W` para fechar a janela, `Super+E` para a pasta pessoal, `Alt+Super+N` para o Chrome e `Ctrl+Alt+Shift+P`/`R` para desligar/reiniciar.
 - **Apps**: preferências e atalhos do terminal Ptyxis.
 
-Rode de um terminal dentro da sessão do GNOME e, no fim, **faça logout e login** para as extensões novas carregarem. Rodar de novo não reinstala o que já existe e só reaplica as mesmas chaves. Para que os temas apareçam, o módulo 10 deve ter rodado antes.
+Rode de um terminal dentro da sessão do GNOME e, no fim, **faça logout e login** para as extensões novas carregarem. Em outro desktop, o módulo avisa e termina sem fazer nada. Rodar de novo não reinstala o que já existe e só reaplica as mesmas chaves. Para que os temas apareçam, o módulo 10 deve ter rodado antes.
 
 O papel de parede e a foto do usuário não ficam no repositório (ele é público, e as imagens são pessoais ou têm direitos autorais): escolha-os com o módulo 12 (caso de uso 14).
 
@@ -191,6 +192,7 @@ As regras são heurísticas: revise sempre o `git diff` antes de commitar.
 - **Papel de parede**: como no GNOME Settings, uma cópia vai para `~/.local/share/backgrounds` (o papel de parede continua lá mesmo se o original for movido ou apagado) e é aplicada nos estilos claro e escuro e na tela de bloqueio. Escolher a mesma imagem de novo reaproveita a cópia.
 - **Foto do usuário**: o centro da imagem é recortado em quadrado e reduzido para 512x512, o tamanho que o GNOME Settings usa, respeitando a rotação da foto (EXIF). Aparece na tela de login, na tela de bloqueio e no menu do sistema. Não precisa de `sudo`.
 - A imagem é aberta pela mesma biblioteca que o GNOME usa para desenhá-la (GdkPixbuf); um arquivo que não seja imagem é recusado com erro antes de qualquer mudança.
+- Só no GNOME: em outro desktop, o módulo avisa e termina sem fazer nada.
 
 ### 15. Adicionar uma nova etapa de automação
 Veja [Desenvolvimento](#desenvolvimento). Basta criar `scripts/NN-nome.sh` com o cabeçalho certo: o menu e o `--all` passam a incluí-lo automaticamente.
@@ -202,20 +204,22 @@ Antigravity, Claude Code, Cursor e GitHub Copilot já encontram as regras do pro
 
 | Nº | Script | O que faz | sudo |
 | --- | --- | --- | --- |
-| 01 | `01-setupEnv.sh` | Cria `~/Dev/{linux_projects,personal_projects,college_projects}` e clona os forks pessoais do GNOME e do tema GRUB | não |
+| 01 | `01-setupEnv.sh` | Cria `~/Dev/{linux_projects,personal_projects,college_projects}` e clona os forks pessoais das extensões do GNOME (só no GNOME) e do tema GRUB | não |
 | 02 | `02-permissions.sh` | Dá permissão de execução a `app.sh` e aos scripts de `scripts/`, `style/` e `tools/` | não |
 | 03 | `03-update.sh` | Atualiza pacotes do sistema e Flatpaks conforme a política de versões, remove dependências órfãs e avisa sobre firmware e reinício | sim |
-| 04 | `04-commonPrograms.sh` | Remove LibreOffice e bloatware do GNOME; habilita o RPM Fusion; instala codecs (ffmpeg completo e grupo multimedia) e o driver de aceleração de vídeo da GPU detectada (AMD ou Intel; NVIDIA só recebe um aviso); instala ferramentas de CLI (zsh, git, fzf, btop, bat, eza, zoxide, tldr, curl, wget, script), apps (GNOME Tweaks, VLC, Tilix, GIMP, OBS Studio), ferramentas de dev, bancos de dados, Podman, Flatpak, Python, Java, Maven e powerline-fonts; garante o Flathub. No apt, só remove o bloatware que não arrastaria outros pacotes | sim |
+| 04 | `04-commonPrograms.sh` | Remove LibreOffice e, no GNOME, o bloatware do GNOME; habilita o RPM Fusion; instala codecs (ffmpeg completo e grupo multimedia) e o driver de aceleração de vídeo da GPU detectada (AMD ou Intel; NVIDIA só recebe um aviso); instala ferramentas de CLI (zsh, git, fzf, btop, bat, eza, zoxide, tldr, curl, wget, script), apps (VLC, Tilix, GIMP, OBS Studio e, no GNOME, GNOME Tweaks), ferramentas de dev, bancos de dados, Podman, Flatpak, Python, Java, Maven e powerline-fonts; garante o Flathub. No apt, só remove o bloatware que não arrastaria outros pacotes | sim |
 | 05 | `05-flatpakPrograms.sh` | Instala os aplicativos Flatpak listados no caso de uso 11 que faltam; atualizações seguem a política de versões | sim |
 | 06 | `06-externalRepos.sh` | Configura os repositórios oficiais e instala VSCode, Chrome, MongoDB, Docker CE e Docker Desktop; habilita o serviço docker e adiciona o usuário ao grupo `docker` | sim |
 | 07 | `07-gitAndSSH.sh` | Identidade Git global e chave SSH ed25519 | não |
 | 08 | `08-terminalAndShell.sh` | zsh, oh-my-zsh, plugins, Spaceship, Nerd Fonts, shell padrão e `.zshrc` | só para trocar o shell |
 | 09 | `09-devEnvironments.sh` | Dependências do Tauri e toolchain C, Rust, eza, uv, Node.js LTS (fnm), pnpm autônomo, Claude Code e Antigravity CLI (instaladores oficiais) | sim |
-| 10 | `10-themesAndGrub.sh` | Orchis, Tela Circle, Vimix, GRUB oculto, tema GRUB opcional e tela de boot Plymouth deus_ex | sim |
-| 11 | `11-gnomeSettings.sh` | Extensões do GNOME, configurações do sistema e das extensões, apps do dock e atalhos | só para extensões empacotadas no Fedora |
-| 12 | `12-wallpaperAndAvatar.sh` | Papel de parede e foto do usuário, escolhidos num seletor de arquivos ou pelo `.env` | só para instalar o `zenity` (seletor), se faltar |
+| 10 | `10-themesAndGrub.sh` | Orchis, Tela Circle e Vimix (só no GNOME), GRUB oculto, tema GRUB opcional e tela de boot Plymouth deus_ex | sim |
+| 11 | `11-gnomeSettings.sh` | Só no GNOME: extensões, configurações do sistema e das extensões, apps do dock e atalhos | só para extensões empacotadas no Fedora |
+| 12 | `12-wallpaperAndAvatar.sh` | Só no GNOME: papel de parede e foto do usuário, escolhidos num seletor de arquivos ou pelo `.env` | só para instalar o `zenity` (seletor), se faltar |
 
 No Fedora, o pacote `malcontent` (controle parental) **não** é removido, porque o GNOME Settings depende dele; sai apenas a interface `malcontent-control`.
+
+**Fora do GNOME**, cada módulo pula a sua parte do GNOME e avisa ("GNOME not detected"): o 01 não clona os forks das extensões, o 04 não remove o bloatware do GNOME (só o LibreOffice) nem instala o GNOME Tweaks, o 05 não instala o Extension Manager, o 10 não instala os temas (GRUB e Plymouth continuam), e o 11 e o 12 terminam sem fazer nada. O GNOME é detectado quando o GNOME Shell está instalado e a sessão gráfica é GNOME (`XDG_CURRENT_DESKTOP`); rodando por TTY ou SSH, basta o GNOME Shell estar instalado.
 
 ## O que o projeto altera no sistema
 Transparência sobre tudo o que sai do `$HOME`:
@@ -237,6 +241,7 @@ Transparência sobre tudo o que sai do `$HOME`:
 - **O terminal continua no bash**: o novo shell vale a partir do próximo login.
 - **O tema do GRUB não foi instalado**: defina `GRUB_THEME_ARGS` e `GITHUB_USER` no `.env` e rode o 01 e o 10.
 - **O `--all` parou pedindo dados**: falta alguma chave no `.env` (ver [Configuração](#configuração-env)).
+- **"GNOME not detected"**: a sessão gráfica não é o GNOME (ou o GNOME Shell não está instalado), e as etapas do GNOME foram puladas de propósito. Se você está no GNOME, rode de um terminal aberto dentro da sessão.
 - **"No D-Bus session found" nos módulos 11 e 12**: rode a partir de um terminal aberto dentro da sessão do GNOME, não por SSH ou TTY.
 - **"Could not install <extensão> for GNOME Shell N"**: a extensão ainda não tem versão para o seu GNOME (comum logo após uma atualização do Fedora). As configurações são aplicadas mesmo assim; rode o 11 de novo mais tarde.
 - **Extensões instaladas mas inativas**: faça logout e login (no Wayland o GNOME só carrega extensões novas ao iniciar a sessão).
@@ -289,6 +294,9 @@ Transparência sobre tudo o que sai do `$HOME`:
 | --- | --- |
 | `detect_distro` | Define `PKG_MANAGER` (`apt`/`dnf`); aborta em distribuições não suportadas |
 | `is_apt` / `is_dnf` | Condicionais por gerenciador de pacotes |
+| `is_gnome` | Verdadeiro quando o GNOME é detectado (sem mensagem) |
+| `gnome_only "etapa"` | Para etapas do GNOME: `if gnome_only "GNOME Tweaks"; then ...; fi`. Fora do GNOME, avisa o que foi pulado |
+| `require_gnome` | Para módulos que só configuram o GNOME: fora dele, encerra o módulo com sucesso |
 | `ensure_command cmd [pkg_apt] [pkg_dnf]` | Instala o pacote se o comando não existir |
 | `clone_if_missing repo destino` | `git clone` idempotente |
 | `load_env` | Carrega o `.env` da raiz |
@@ -310,6 +318,7 @@ Transparência sobre tudo o que sai do `$HOME`:
 - **Fail-fast**: `set -euo pipefail`; nada de `|| true` para esconder erros e nada de comandos críticos encadeados com `&&`.
 - **Idempotência**: cheque antes de instalar, clonar, baixar, anexar ou fazer backup.
 - **Política de versões**: o que já está instalado nunca é atualizado em silêncio. Use `install_packages`, `install_flatpaks`, `offer_git_updates` ou `confirm_updates`; para o que não vem de pacote, registre a versão com `record_version`. Consultas de versão pela rede nunca podem abortar o módulo (sem rede, a checagem é pulada e o que está instalado é mantido).
+- **GNOME só no GNOME**: módulos que só configuram o GNOME chamam `require_gnome`; etapas do GNOME em outros módulos ficam dentro de `gnome_only`. O `tools/check.sh` falha se um módulo usar `gsettings`, `dconf` ou `gnome-extensions` sem essa proteção.
 - **Sem caminhos fixos**: use `$SCRIPT_DIR`, `$DOTFILES_DIR`, `$HOME` e `mktemp`.
 - **Sem dados pessoais no código**: use o `.env`.
 - **Fedora**: só sintaxe do dnf5 e nomes de pacote validados (detalhes em `.agents/rules/06-fedora.md`).
@@ -322,7 +331,7 @@ dnf install --assumeno <lista de pacotes> # a transação resolve? (sem root)
 dnf remove --assumeno <pacote>            # o que mais seria removido? (sem root)
 ```
 O `tools/check.sh` nunca executa módulos nem usa `sudo`. O shellcheck roda num container com a versão fixa 0.11.0 (podman ou docker), para dar o mesmo resultado em qualquer máquina; sem container, usa o shellcheck local. O **CI** (`.github/workflows/check.yml`) roda o mesmo script a cada push e pull request no GitHub.
-Módulos que não exigem root (01, 07, 08) podem ser testados com `HOME` apontando para um diretório temporário.
+Módulos que não exigem root (01, 07, 08) podem ser testados com `HOME` apontando para um diretório temporário. Para ver o comportamento fora do GNOME, rode o módulo com `XDG_CURRENT_DESKTOP=KDE`. Nunca teste o 11 ou o 12 com a sessão D-Bus real: aponte `DBUS_SESSION_BUS_ADDRESS` para um socket inexistente e use `dconf`/`gsettings` falsos (detalhes em `.agents/rules/03-standards.md`).
 
 ### Commits
 Em inglês, no padrão Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`), com título curto e corpo explicando o porquê. Detalhes em `.agents/rules/05-security-and-git.md`.

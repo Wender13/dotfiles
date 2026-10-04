@@ -21,12 +21,14 @@ FLATPAK_APPS=(
     io.dbeaver.DBeaverCommunity
     com.mongodb.Compass
     org.localsend.localsend_app
-    com.mattjakeman.ExtensionManager
     org.prismlauncher.PrismLauncher
     org.zotero.Zotero
     io.podman_desktop.PodmanDesktop
     org.inkscape.Inkscape
 )
+if gnome_only "Extension Manager"; then
+    FLATPAK_APPS+=(com.mattjakeman.ExtensionManager)
+fi
 
 # System-wide, same scope as the Flathub remote. Missing apps are installed; installed
 # ones with an update follow the update policy (see lib.sh).

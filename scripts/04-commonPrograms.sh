@@ -13,14 +13,24 @@ print_header "Installing common programs"
 # end in a single question, following the update policy (see lib.sh)
 OFFER=()
 
+# GNOME apps: the bloatware removed on GNOME and GNOME Tweaks. Other desktops keep theirs
+# (Simple Scan, for example, is the scanner app of Xfce).
+GNOME=0
+if gnome_only "the GNOME bloatware removal and GNOME Tweaks"; then
+    GNOME=1
+fi
+
 if is_apt; then
     print_header "Removing LibreOffice and GNOME bloatware"
     # On Ubuntu, metapackages such as ubuntu-desktop depend on some of these. Removing one
     # would take the metapackage along, and a later 'apt autoremove' would strip the desktop.
     # So each installed package is simulated first and kept if apt would remove anything
     # beyond this list.
-    mapfile -t bloatware < <(dpkg-query -W -f='${Package} ${db:Status-Status}\n' \
-        'libreoffice*' yelp gnome-tour malcontent malcontent-gui gnome-contacts simple-scan 2>/dev/null \
+    REMOVE=('libreoffice*')
+    if [ "$GNOME" -eq 1 ]; then
+        REMOVE+=(yelp gnome-tour malcontent malcontent-gui gnome-contacts simple-scan)
+    fi
+    mapfile -t bloatware < <(dpkg-query -W -f='${Package} ${db:Status-Status}\n' "${REMOVE[@]}" 2>/dev/null \
         | awk '$2 == "installed" { print $1 }')
     removable=()
     for pkg in "${bloatware[@]}"; do
@@ -43,10 +53,10 @@ if is_apt; then
 
     # ─── Categorias de Pacotes (Ubuntu/Debian) ───
     CLI_TOOLS="zsh git fzf btop bat zoxide tldr curl wget"
-    GUI_APPS="gnome-tweaks vlc tilix gimp obs-studio"
+    GUI_APPS="vlc tilix gimp obs-studio"
     DEV_TOOLS="make cmake build-essential libssl-dev"
     DATABASES="mariadb-server sqlite3 postgresql"
-    CONTAINERS="podman flatpak gnome-software-plugin-flatpak"
+    CONTAINERS="podman flatpak"
     LANGUAGES="python3 python3-pip default-jdk maven"
     CODECS="libavcodec-extra fonts-powerline"
     # ubuntu-restricted-extras only exists on Ubuntu and its derivatives. It pulls the
@@ -59,6 +69,10 @@ if is_apt; then
     fi
 
     read -r -a PACKAGES <<< "$CLI_TOOLS $GUI_APPS $DEV_TOOLS $DATABASES $CONTAINERS $LANGUAGES $CODECS"
+    if [ "$GNOME" -eq 1 ]; then
+        # The plugin shows Flatpak apps in GNOME Software
+        PACKAGES+=(gnome-tweaks gnome-software-plugin-flatpak)
+    fi
     install_missing_packages "${PACKAGES[@]}"
     OFFER+=("${PACKAGES[@]}")
 
@@ -67,7 +81,11 @@ elif is_dnf; then
     # Only installed packages reach dnf, so reruns are no-ops and real failures stay visible.
     # 'malcontent' itself is kept: gnome-control-center (and so gnome-shell) depends on it.
     # Its GUI, malcontent-control, is safe to remove.
-    mapfile -t bloatware < <(rpm -qa --qf '%{NAME}\n' 'libreoffice*' yelp gnome-tour malcontent-control gnome-contacts simple-scan | sort -u)
+    REMOVE=('libreoffice*')
+    if [ "$GNOME" -eq 1 ]; then
+        REMOVE+=(yelp gnome-tour malcontent-control gnome-contacts simple-scan)
+    fi
+    mapfile -t bloatware < <(rpm -qa --qf '%{NAME}\n' "${REMOVE[@]}" | sort -u)
     if [ ${#bloatware[@]} -gt 0 ]; then
         sudo dnf remove -y "${bloatware[@]}"
     else
@@ -96,7 +114,7 @@ elif is_dnf; then
     # Fedora ships Flatpak support inside gnome-software (no separate plugin package).
     # util-linux-script provides 'script', which app.sh uses to log --all runs
     CLI_TOOLS="zsh git fzf btop bat eza zoxide tldr curl wget util-linux-script"
-    GUI_APPS="gnome-tweaks vlc tilix gimp obs-studio"
+    GUI_APPS="vlc tilix gimp obs-studio"
     DEV_TOOLS="make cmake gcc gcc-c++ openssl-devel @development-tools"
     DATABASES="mariadb-server sqlite postgresql-server"
     CONTAINERS="podman flatpak"
@@ -104,6 +122,9 @@ elif is_dnf; then
     FONTS="powerline-fonts"
 
     read -r -a PACKAGES <<< "$CLI_TOOLS $GUI_APPS $DEV_TOOLS $DATABASES $CONTAINERS $LANGUAGES $FONTS"
+    if [ "$GNOME" -eq 1 ]; then
+        PACKAGES+=(gnome-tweaks)
+    fi
     install_missing_packages "${PACKAGES[@]}"
     OFFER+=("${PACKAGES[@]}")
 fi

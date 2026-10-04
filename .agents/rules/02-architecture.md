@@ -23,6 +23,7 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
   - `print_header "Titulo"`.
   - `detect_distro`: define `PKG_MANAGER` (`apt` ou `dnf`), exige dnf5 no Fedora e recusa a família RHEL e o Fedora Atomic (Silverblue, Kinoite).
   - `is_apt` / `is_dnf`.
+  - `is_gnome`, `gnome_only "etapa"` e `require_gnome`: detecção do GNOME (critério em `01-context.md`). `gnome_only` devolve 1 e avisa o que foi pulado; `require_gnome` encerra com sucesso os módulos que só configuram o GNOME (11 e 12).
   - `ensure_command <cmd> [pkg_apt] [pkg_dnf]`: instala o pacote se o comando não existir.
   - `clone_if_missing <repo> <destino>`.
   - `load_env`: carrega o `.env` da raiz, se existir.
@@ -39,25 +40,25 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
   - `burn-my-windows/profiles/`: perfis de efeito referenciados pelas configurações da extensão.
   - `bin/export-gnome-settings.sh`: gera os três itens acima a partir do GNOME em execução, filtrando estado da máquina (timestamps, tamanhos de janela) e caminhos de papel de parede, e descartando chaves e valores com cara de segredo ou e-mail (lista o que descartou e aborta se algo suspeito passar). Não edite os `.ini` à mão quando der para reexportar.
 - `.github/workflows/check.yml`: CI que roda o `tools/check.sh` a cada push e pull request (ação de checkout fixada por hash, token só de leitura).
-- `tools/check.sh`: verificações estáticas do projeto (sintaxe, shellcheck, convenções dos módulos, largura do menu, dados pessoais, emojis). Fica fora de `scripts/` para não virar item do menu.
+- `tools/check.sh`: verificações estáticas do projeto (sintaxe, shellcheck, convenções dos módulos e proteção do GNOME, largura do menu, dados pessoais, emojis). Fica fora de `scripts/` para não virar item do menu.
 - `terminal/.zshrc`: copiado para `~/.zshrc` pelo módulo 08, com backup quando o arquivo existente for diferente.
 - `.env` (ignorado pelo git) e `.env.example` (modelo versionado): configurações pessoais.
 
 ## Módulos
 | Módulo | Responsabilidade | sudo | `.env` |
 | --- | --- | --- | --- |
-| `01-setupEnv.sh` | Cria a estrutura `~/Dev` e clona os forks pessoais do GNOME e do tema GRUB | não | `GITHUB_USER` |
+| `01-setupEnv.sh` | Cria a estrutura `~/Dev` e clona os forks pessoais das extensões do GNOME (só no GNOME) e do tema GRUB | não | `GITHUB_USER` |
 | `02-permissions.sh` | Permissão de execução em `app.sh` e nos scripts de `scripts/`, `style/` e `tools/` | não | - |
 | `03-update.sh` | Atualiza sistema e Flatpaks conforme a política de versões; avisa sobre firmware (`fwupdmgr`) e reinício pendente | sim | - |
-| `04-commonPrograms.sh` | Remove bloatware (no apt, só o que não arrasta outros pacotes), habilita RPM Fusion, codecs, driver VA-API da GPU (AMD/Intel) e pacotes base | sim | - |
-| `05-flatpakPrograms.sh` | Aplicativos via Flathub (atualizações conforme a política de versões) | sim | - |
+| `04-commonPrograms.sh` | Remove o LibreOffice e, no GNOME, o bloatware do GNOME (no apt, só o que não arrasta outros pacotes), habilita RPM Fusion, codecs, driver VA-API da GPU (AMD/Intel) e pacotes base (GNOME Tweaks só no GNOME) | sim | - |
+| `05-flatpakPrograms.sh` | Aplicativos via Flathub (Extension Manager só no GNOME; atualizações conforme a política de versões) | sim | - |
 | `06-externalRepos.sh` | Repositórios de fornecedores (VSCode, Chrome, MongoDB, Docker) e Docker Desktop | sim | - |
 | `07-gitAndSSH.sh` | Identidade Git global e chave SSH | não | `GIT_USERNAME`, `GIT_EMAIL` |
 | `08-terminalAndShell.sh` | zsh, oh-my-zsh, plugins, Spaceship, Nerd Fonts, shell padrão, `.zshrc` | só para trocar o shell | - |
 | `09-devEnvironments.sh` | Dependências do Tauri, Rust, eza, uv, Node (fnm), pnpm autônomo, Claude Code e Antigravity CLI | sim | - |
-| `10-themesAndGrub.sh` | Temas GNOME (Orchis, Tela Circle, Vimix), GRUB oculto, tema GRUB opcional e Plymouth deus_ex | sim | `GRUB_THEME_ARGS` |
-| `11-gnomeSettings.sh` | Extensões do GNOME, configurações do sistema e das extensões, apps fixados e atalhos | só para extensões empacotadas | - |
-| `12-wallpaperAndAvatar.sh` | Papel de parede (cópia em `~/.local/share/backgrounds`, chaves via `gsettings`) e foto do usuário (recorte 512x512 com GdkPixbuf, entregue ao AccountsService via `busctl`), escolhidos no seletor do `zenity` ou pelo `.env` | só para instalar o `zenity`, se faltar | `WALLPAPER_IMAGE`, `AVATAR_IMAGE` |
+| `10-themesAndGrub.sh` | Temas GNOME (Orchis, Tela Circle, Vimix; só no GNOME), GRUB oculto, tema GRUB opcional e Plymouth deus_ex | sim | `GRUB_THEME_ARGS` |
+| `11-gnomeSettings.sh` | Só no GNOME (`require_gnome`): extensões, configurações do sistema e das extensões, apps fixados e atalhos | só para extensões empacotadas | - |
+| `12-wallpaperAndAvatar.sh` | Só no GNOME (`require_gnome`): papel de parede (cópia em `~/.local/share/backgrounds`, chaves via `gsettings`) e foto do usuário (recorte 512x512 com GdkPixbuf, entregue ao AccountsService via `busctl`), escolhidos no seletor do `zenity` ou pelo `.env` | só para instalar o `zenity`, se faltar | `WALLPAPER_IMAGE`, `AVATAR_IMAGE` |
 
 ## O Fluxo de Execução
 

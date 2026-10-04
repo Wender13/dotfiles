@@ -62,9 +62,13 @@ for f in "${MODULES[@]}"; do
     grep -q 'source "$SCRIPT_DIR/lib.sh"' "$f"   || { fail "$name: does not source lib.sh"; modules_ok=0; }
     grep -q '^detect_distro$' "$f"               || { fail "$name: does not call detect_distro"; modules_ok=0; }
     [ -x "$f" ]                                  || { fail "$name: not executable (chmod +x)"; modules_ok=0; }
+    # GNOME settings and extensions are applied only on GNOME (require_gnome/gnome_only in lib.sh)
+    if grep -qE '(gsettings|dconf|gnome-extensions) ' "$f" && ! grep -qE 'require_gnome|gnome_only|is_gnome' "$f"; then
+        fail "$name: changes GNOME settings without require_gnome or gnome_only"; modules_ok=0
+    fi
 done
 [ -x app.sh ] || { fail "app.sh: not executable (chmod +x)"; modules_ok=0; }
-[ "$modules_ok" -eq 1 ] && ok "${#MODULES[@]} modules follow the header, preamble and naming rules"
+[ "$modules_ok" -eq 1 ] && ok "${#MODULES[@]} modules follow the header, preamble, naming and GNOME guard rules"
 
 echo "Menu rendering"
 widths=$(printf 'q\n' | TERM=dumb ./app.sh 2>/dev/null \

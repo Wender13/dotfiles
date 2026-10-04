@@ -71,6 +71,35 @@ detect_distro() {
 is_apt() { [ "$PKG_MANAGER" = "apt" ]; }
 is_dnf() { [ "$PKG_MANAGER" = "dnf" ]; }
 
+# ─── Desktop ──────────────────────────────────────────────────────────────────
+# The project targets GNOME. Everything GNOME-specific (settings, extensions, themes, GNOME
+# apps) runs only when GNOME is detected; on other desktops it is skipped, never an error.
+# GNOME: GNOME Shell is installed and the graphical session is GNOME (XDG_CURRENT_DESKTOP is
+# "GNOME" on Fedora, "ubuntu:GNOME" on Ubuntu). Without a graphical session (TTY, SSH),
+# having GNOME Shell installed is enough.
+is_gnome() {
+    command -v gnome-shell &> /dev/null || return 1
+    [ -z "${XDG_CURRENT_DESKTOP:-}" ] || [[ ":${XDG_CURRENT_DESKTOP^^}:" == *:GNOME:* ]]
+}
+
+# Guard for a GNOME step inside a module: returns 1, saying what is skipped, elsewhere.
+# Usage: if gnome_only "GNOME Tweaks"; then ...; fi
+gnome_only() {
+    if is_gnome; then
+        return 0
+    fi
+    echo -e "${C_YELLOW}GNOME not detected (desktop: ${XDG_CURRENT_DESKTOP:-unknown}). Skipping $1.${C_RESET}"
+    return 1
+}
+
+# For modules that only configure GNOME: elsewhere, ends the module successfully
+require_gnome() {
+    if ! is_gnome; then
+        echo -e "${C_YELLOW}GNOME not detected (desktop: ${XDG_CURRENT_DESKTOP:-unknown}). This module only configures GNOME: skipping.${C_RESET}"
+        exit 0
+    fi
+}
+
 ensure_command() {
     local cmd=$1
     local pkg_apt=${2:-$1}
