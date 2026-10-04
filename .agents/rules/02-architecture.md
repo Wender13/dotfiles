@@ -57,6 +57,7 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
 | `09-devEnvironments.sh` | Dependências do Tauri, Rust, eza, uv, Node (fnm), pnpm autônomo, Claude Code e Antigravity CLI | sim | - |
 | `10-themesAndGrub.sh` | Temas GNOME (Orchis, Tela Circle, Vimix), GRUB oculto, tema GRUB opcional e Plymouth deus_ex | sim | `GRUB_THEME_ARGS` |
 | `11-gnomeSettings.sh` | Extensões do GNOME, configurações do sistema e das extensões, apps fixados e atalhos | só para extensões empacotadas | - |
+| `12-wallpaperAndAvatar.sh` | Papel de parede (cópia em `~/.local/share/backgrounds`, chaves via `gsettings`) e foto do usuário (recorte 512x512 com GdkPixbuf, entregue ao AccountsService via `busctl`), escolhidos no seletor do `zenity` ou pelo `.env` | só para instalar o `zenity`, se faltar | `WALLPAPER_IMAGE`, `AVATAR_IMAGE` |
 
 ## O Fluxo de Execução
 
@@ -74,7 +75,7 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
 2. Pede a senha do sudo uma única vez e mantém o timestamp ativo em segundo plano enquanto roda. Ao terminar (inclusive por Ctrl+C), invalida as credenciais em cache (`sudo -k`).
 3. Executa todos os módulos em ordem, sem limpar a tela, preservando a saída de cada um.
 4. A falha de um módulo não interrompe os seguintes. Ao final, lista os módulos que falharam, mostra o caminho do log e sai com código 1 (ou 0 se tudo deu certo).
-5. Sem `.env`, os módulos 01 e 07 perguntam os dados no terminal: o 01 permite pular, o 07 exige os dados.
+5. Sem `.env`, os módulos 01 e 07 perguntam os dados no terminal: o 01 permite pular, o 07 exige os dados. O 12 abre o seletor de arquivos (Cancelar mantém a imagem atual).
 6. A política de versões padrão é `keep`: só instala o que falta e lista o que tem versão nova. `--all --ask` pergunta uma vez por grupo; `--all --update` atualiza tudo.
 
 ## Dependências entre Módulos
@@ -83,4 +84,5 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
 - O `.zshrc` copiado pelo 08 é o do uso diário do dono do repositório. Ele coloca no PATH o que o 09 instala (fnm, pnpm em `$PNPM_HOME/bin`, cargo) e carrega cada ferramenta só se ela existir. Mudanças nele devem partir do `~/.zshrc` em uso, sem caminhos `/home/<usuário>`.
 - O 11 aplica os temas instalados pelo 10 (`Orchis-Dark`, `Tela-circle-dark`, `Vimix-cursors`) e fixa no dock apps instalados pelo 05 e pelo 06. Se mudar um tema no 10, reexporte as configurações.
 - O log do `--all` usa o `script`, que no Fedora vem do pacote `util-linux-script`, instalado pelo 04 (na primeira execução numa máquina nova, o log é feito com `tee`).
-- O 11 precisa rodar dentro da sessão gráfica do GNOME (usa o D-Bus da sessão). Extensões novas só carregam depois de logout e login (Wayland).
+- O 11 precisa rodar dentro da sessão gráfica do GNOME (usa o D-Bus da sessão). Extensões novas só carregam depois de logout e login (Wayland). O 12 também (`gsettings` e o seletor do `zenity`).
+- O papel de parede e a foto do usuário nunca entram no repositório: o exportador descarta os `picture-uri` e o 12 lê as imagens do `.env` ou do seletor.

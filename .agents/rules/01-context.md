@@ -45,5 +45,5 @@ A instalação de software obedece rigorosamente à seguinte ordem de preferênc
 
 ## Tecnologias Envolvidas
 - Linguagem principal: `bash`
-- Customização de Interface: GNOME (tema Orchis, ícones Tela Circle, cursores Vimix, extensões, configurações e atalhos via dconf, GRUB, Plymouth) e possivelmente Cosmic no futuro.
+- Customização de Interface: GNOME (tema Orchis, ícones Tela Circle, cursores Vimix, extensões, configurações e atalhos via dconf, papel de parede e foto do usuário, GRUB, Plymouth) e possivelmente Cosmic no futuro.
 - Terminal: `zsh` + `oh-my-zsh` + plugins + tema Spaceship.

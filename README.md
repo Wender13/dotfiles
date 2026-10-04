@@ -46,6 +46,8 @@ O `.env` fica na raiz, é ignorado pelo git e guarda os dados pessoais. Nenhum d
 | `GITHUB_USER` | 01 | Dono dos forks pessoais clonados (hidetopbar, lockkeys, grub2-theme) | Pergunta no terminal (Enter pula) |
 | `GRUB_THEME_ARGS` | 10 | Argumentos do instalador do tema GRUB (ex: `-b -t tela -s 1080p`) | Não instala tema no GRUB |
 | `UPDATE_POLICY` | todos | O que fazer com o que já está instalado e tem versão nova: `ask`, `update` ou `keep` (ver caso de uso 5) | Menu: `ask`; `--all`: `keep` |
+| `WALLPAPER_IMAGE` | 12 | Imagem do papel de parede (caminho absoluto ou `~/...`) | Abre um seletor de arquivos (Cancelar mantém o atual) |
+| `AVATAR_IMAGE` | 12 | Imagem da foto do usuário (caminho absoluto ou `~/...`) | Abre um seletor de arquivos (Cancelar mantém a atual) |
 
 No Fedora, inclua `-b` em `GRUB_THEME_ARGS`: o `/boot` é uma partição separada, e o tema precisa ficar em `/boot/grub2/themes`.
 
@@ -57,11 +59,11 @@ cp .env.example .env && $EDITOR .env   # preencha todas as chaves
 ./app.sh --all
 ```
 - A senha do `sudo` é pedida **uma única vez**, no início, e mantida ativa durante toda a execução. Ao terminar, as credenciais em cache são invalidadas (`sudo -k`).
-- Os módulos rodam em ordem (01 a 11), sem limpar a tela, então a saída de cada um fica no histórico do terminal.
+- Os módulos rodam em ordem (01 a 12), sem limpar a tela, então a saída de cada um fica no histórico do terminal.
 - Por padrão o `--all` **não mexe no que já está instalado** (política `keep`): só instala o que falta e lista o que tem versão mais nova. Para ser perguntado, use `./app.sh --all --ask`; para atualizar tudo, `./app.sh --all --update` (caso de uso 5).
-- Rode a partir de um terminal **dentro da sessão do GNOME**: o módulo 11 aplica as configurações pela sessão gráfica.
+- Rode a partir de um terminal **dentro da sessão do GNOME**: os módulos 11 e 12 aplicam as configurações pela sessão gráfica.
 - Se um módulo falhar, os seguintes continuam. No fim aparece a lista dos módulos com falha, e o comando sai com código `1` (ou `0` se tudo deu certo).
-- Sem `.env`, o 01 e o 07 fazem perguntas no meio da execução.
+- Sem `.env`, o 01 e o 07 fazem perguntas no meio da execução, e o 12 abre o seletor de arquivos para o papel de parede e a foto do usuário (Cancelar mantém os atuais).
 - **Log completo** de cada execução em `~/.local/state/dotfiles/logs/setup-<data>.log` (pasta só sua, os 10 mais recentes são mantidos); o caminho aparece no resumo final. Leia com `less -R`. Só a saída é gravada: a senha digitada nunca vai para o log.
 - Depois de terminar, **faça logout e login** (ou reinicie) para aplicar o shell zsh, o grupo `docker` e as fontes.
 
@@ -162,7 +164,7 @@ Deixa o GNOME igual ao da máquina de onde as configurações foram capturadas, 
 
 Rode de um terminal dentro da sessão do GNOME e, no fim, **faça logout e login** para as extensões novas carregarem. Rodar de novo não reinstala o que já existe e só reaplica as mesmas chaves. Para que os temas apareçam, o módulo 10 deve ter rodado antes.
 
-O papel de parede não é restaurado: o repositório é público e imagens de terceiros têm direitos autorais, então ele fica como escolha manual.
+O papel de parede e a foto do usuário não ficam no repositório (ele é público, e as imagens são pessoais ou têm direitos autorais): escolha-os com o módulo 12 (caso de uso 14).
 
 ### 13. Salvar no repositório as configurações atuais do GNOME
 Mudou um atalho, instalou uma extensão ou ajustou algo no Settings? Capture o estado atual:
@@ -180,10 +182,20 @@ Proteção contra vazamento de segredos (o repositório pode ser público):
 
 As regras são heurísticas: revise sempre o `git diff` antes de commitar.
 
-### 14. Adicionar uma nova etapa de automação
+### 14. Escolher o papel de parede e a foto do usuário (módulo 12)
+```bash
+./app.sh    # e escolha o 12
+```
+- Para cada um, abre um seletor de arquivos na sua pasta de imagens. **Cancelar mantém o atual.** Sem ambiente gráfico, o caminho é digitado no terminal (Tab completa).
+- Com `WALLPAPER_IMAGE` e `AVATAR_IMAGE` no `.env`, as imagens são aplicadas sem perguntar, inclusive no `--all`.
+- **Papel de parede**: como no GNOME Settings, uma cópia vai para `~/.local/share/backgrounds` (o papel de parede continua lá mesmo se o original for movido ou apagado) e é aplicada nos estilos claro e escuro e na tela de bloqueio. Escolher a mesma imagem de novo reaproveita a cópia.
+- **Foto do usuário**: o centro da imagem é recortado em quadrado e reduzido para 512x512, o tamanho que o GNOME Settings usa, respeitando a rotação da foto (EXIF). Aparece na tela de login, na tela de bloqueio e no menu do sistema. Não precisa de `sudo`.
+- A imagem é aberta pela mesma biblioteca que o GNOME usa para desenhá-la (GdkPixbuf); um arquivo que não seja imagem é recusado com erro antes de qualquer mudança.
+
+### 15. Adicionar uma nova etapa de automação
 Veja [Desenvolvimento](#desenvolvimento). Basta criar `scripts/NN-nome.sh` com o cabeçalho certo: o menu e o `--all` passam a incluí-lo automaticamente.
 
-### 15. Usar agentes de IA para manter o projeto
+### 16. Usar agentes de IA para manter o projeto
 Antigravity, Claude Code, Cursor e GitHub Copilot já encontram as regras do projeto. Veja [Trabalhando com agentes de IA](#trabalhando-com-agentes-de-ia).
 
 ## Módulos
@@ -201,6 +213,7 @@ Antigravity, Claude Code, Cursor e GitHub Copilot já encontram as regras do pro
 | 09 | `09-devEnvironments.sh` | Dependências do Tauri e toolchain C, Rust, eza, uv, Node.js LTS (fnm), pnpm autônomo, Claude Code e Antigravity CLI (instaladores oficiais) | sim |
 | 10 | `10-themesAndGrub.sh` | Orchis, Tela Circle, Vimix, GRUB oculto, tema GRUB opcional e tela de boot Plymouth deus_ex | sim |
 | 11 | `11-gnomeSettings.sh` | Extensões do GNOME, configurações do sistema e das extensões, apps do dock e atalhos | só para extensões empacotadas no Fedora |
+| 12 | `12-wallpaperAndAvatar.sh` | Papel de parede e foto do usuário, escolhidos num seletor de arquivos ou pelo `.env` | só para instalar o `zenity` (seletor), se faltar |
 
 No Fedora, o pacote `malcontent` (controle parental) **não** é removido, porque o GNOME Settings depende dele; sai apenas a interface `malcontent-control`.
 
@@ -209,10 +222,10 @@ Transparência sobre tudo o que sai do `$HOME`:
 - **Pacotes**: instalações e remoções via dnf/apt e Flatpak de sistema.
 - **Repositórios**: RPM Fusion; `/etc/yum.repos.d/` (`vscode.repo`, `mongodb-org-8.0.repo`, `docker-ce.repo`); habilitação do repositório `google-chrome`; remoto Flathub habilitado e sem filtro.
 - **Serviços e grupos**: `docker` habilitado e iniciado; seu usuário entra no grupo `docker`.
-- **Usuário**: o shell padrão passa a ser o zsh (`usermod --shell`).
+- **Usuário**: o shell padrão passa a ser o zsh (`usermod --shell`); a foto escolhida no módulo 12 é entregue ao AccountsService, que guarda a cópia dele em `/var/lib/AccountsService/icons/`.
 - **Boot**: `/etc/default/grub` (com backup) e `/boot/grub2/grub.cfg`; tema GRUB em `/boot/grub2/themes` (com `-b`); tema Plymouth em `/usr/share/plymouth/themes/deus_ex`, com o initramfs reconstruído.
-- **Configurações do GNOME (dconf do seu usuário)**: as chaves de `style/gnome/dconf/*.ini`. Só as chaves listadas são alteradas; o resto fica como está.
-- **No `$HOME`**: `~/Dev`, `~/.oh-my-zsh`, `~/.zshrc` (com backup), `~/.local/share/fonts/NerdFonts`, temas em `~/.themes` e `~/.local/share/icons`, extensões em `~/.local/share/gnome-shell/extensions`, `~/.config/burn-my-windows`, `~/.cargo`, `~/.rustup`, `~/.local/share/fnm`, `~/.local/share/pnpm`, Claude Code em `~/.local/bin/claude` e `~/.local/share/claude`, Antigravity em `~/.local/bin/agy`, logs em `~/.local/state/dotfiles/logs`, versões registradas em `~/.local/state/dotfiles/versions`, `~/.gitconfig` e `~/.ssh`.
+- **Configurações do GNOME (dconf do seu usuário)**: as chaves de `style/gnome/dconf/*.ini`. Só as chaves listadas são alteradas; o resto fica como está. O módulo 12 altera também o papel de parede (`org.gnome.desktop.background` e `org.gnome.desktop.screensaver`).
+- **No `$HOME`**: `~/Dev`, `~/.oh-my-zsh`, `~/.zshrc` (com backup), `~/.local/share/fonts/NerdFonts`, temas em `~/.themes` e `~/.local/share/icons`, extensões em `~/.local/share/gnome-shell/extensions`, `~/.config/burn-my-windows`, cópias dos papéis de parede em `~/.local/share/backgrounds`, `~/.cargo`, `~/.rustup`, `~/.local/share/fnm`, `~/.local/share/pnpm`, Claude Code em `~/.local/bin/claude` e `~/.local/share/claude`, Antigravity em `~/.local/bin/agy`, logs em `~/.local/state/dotfiles/logs`, versões registradas em `~/.local/state/dotfiles/versions`, `~/.gitconfig` e `~/.ssh`.
 
 ## Solução de problemas
 - **Algo falhou no `--all` e a saída já rolou da tela**: veja o log indicado no resumo final (`~/.local/state/dotfiles/logs/`).
@@ -224,7 +237,7 @@ Transparência sobre tudo o que sai do `$HOME`:
 - **O terminal continua no bash**: o novo shell vale a partir do próximo login.
 - **O tema do GRUB não foi instalado**: defina `GRUB_THEME_ARGS` e `GITHUB_USER` no `.env` e rode o 01 e o 10.
 - **O `--all` parou pedindo dados**: falta alguma chave no `.env` (ver [Configuração](#configuração-env)).
-- **"No D-Bus session found" no módulo 11**: rode a partir de um terminal aberto dentro da sessão do GNOME, não por SSH ou TTY.
+- **"No D-Bus session found" nos módulos 11 e 12**: rode a partir de um terminal aberto dentro da sessão do GNOME, não por SSH ou TTY.
 - **"Could not install <extensão> for GNOME Shell N"**: a extensão ainda não tem versão para o seu GNOME (comum logo após uma atualização do Fedora). As configurações são aplicadas mesmo assim; rode o 11 de novo mais tarde.
 - **Extensões instaladas mas inativas**: faça logout e login (no Wayland o GNOME só carrega extensões novas ao iniciar a sessão).
 
