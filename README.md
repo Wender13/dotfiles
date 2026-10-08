@@ -197,8 +197,8 @@ Via Flathub (atualização automática): Obsidian, Postman, Insomnia, OnlyOffice
 
 ### 12. Restaurar extensões, configurações e atalhos do GNOME (módulo 11)
 Deixa o GNOME igual ao da máquina de onde as configurações foram capturadas, sem abrir o Settings nem o Extension Manager:
-- **Extensões**: instala as listadas em `style/gnome/extensions.txt` (hoje: User Themes, Clipboard History, Vertical App Grid, Blur my Shell, Just Perfection, Burn My Windows, Compiz Magic Lamp, Lock Keys, Caffeine e Advanced Alt+Tab Window Switcher). Usa o pacote do Fedora quando ele existe; as demais vêm do extensions.gnome.org, na versão do seu GNOME Shell.
-- **Configurações das extensões**: blur, efeitos de janela (incluindo o perfil do Burn My Windows), painel do Just Perfection, grade de apps e tema do shell.
+- **Extensões**: instala as listadas em `style/gnome/extensions.txt`. Ativas hoje: User Themes, Clipboard History, Vertical App Grid, Just Perfection, Burn My Windows, Compiz Magic Lamp, Lock Keys, Caffeine e Advanced Alt+Tab Window Switcher. A Blur my Shell é instalada **desativada** (linha `disabled` no arquivo), com as configurações dela, para você ligar quando quiser. Usa o pacote do Fedora quando ele existe; as demais vêm do extensions.gnome.org, na versão do seu GNOME Shell.
+- **Configurações das extensões**: efeitos de janela (incluindo o perfil do Burn My Windows), painel do Just Perfection, grade de apps, Alt+Tab, tema do shell e o blur da Blur my Shell (aplicado mesmo com ela desativada).
 - **Sistema**: tema escuro, Orchis-Dark, ícones Tela-circle-dark, cursores Vimix, porcentagem da bateria, teclado ABNT2 (`br`), touchpad, tempo de inatividade, suspensão, luz noturna, lembretes de pausa e limite de tempo de tela.
 - **Dock**: apps fixados (Arquivos, Firefox, Chrome, VSCode, Postman, DBeaver e Terminal).
 - **Atalhos**: todos os do sistema e os personalizados, por exemplo `Super+T` para o terminal, `Super+W` para fechar a janela, `Super+E` para a pasta pessoal, `Alt+Super+N` para o Chrome e `Ctrl+Alt+Shift+P`/`R` para desligar/reiniciar.
@@ -214,7 +214,7 @@ Mudou um atalho, instalou uma extensão ou ajustou algo no Settings? Capture o e
 bash style/gnome/bin/export-gnome-settings.sh
 git diff style/gnome    # revise antes de commitar
 ```
-O exportador regrava `style/gnome/dconf/*.ini`, `extensions.txt` e os perfis do Burn My Windows. Ele pega só seções da lista permitida e descarta estado da máquina (timestamps, tamanhos de janela, último painel aberto), caminhos de papel de parede e credenciais (como as de Wi-Fi corporativo). Caminhos dentro do seu `$HOME` viram o marcador `@HOME@`.
+O exportador regrava `style/gnome/dconf/*.ini`, `extensions.txt` e os perfis do Burn My Windows. No `extensions.txt` entram as extensões ativas e, marcadas como `disabled`, as desativadas que **você** instalou (na sua pasta de extensões ou por um `dnf install` seu); as que vêm com o sistema, como as da sessão GNOME Classic e o logo do Fedora, ficam de fora. Ele pega só seções da lista permitida e descarta estado da máquina (timestamps, tamanhos de janela, último painel aberto), caminhos de papel de parede e credenciais (como as de Wi-Fi corporativo). Caminhos dentro do seu `$HOME` viram o marcador `@HOME@`.
 
 Proteção contra vazamento de segredos (o repositório pode ser público):
 - Chaves com nome de segredo (`token`, `secret`, `password`, `api-key`, `appid`, `credential`, `oauth`, `cookie`) são descartadas quando guardam texto.

@@ -61,8 +61,14 @@ ego_version() {
 dnf_packages=()
 ego_extensions=()
 ego_installed=()
-# extensions.txt: "UUID [Fedora package]" per line; '#' starts a comment
-while read -r uuid package _; do
+# extensions.txt: "[disabled] UUID [Fedora package]" per line; '#' starts a comment.
+# Disabled ones are installed the same way: the enabled/disabled lists loaded from
+# dconf/shell.ini below keep them off.
+while read -r uuid package extra _; do
+    if [ "$uuid" = "disabled" ]; then
+        uuid="$package"
+        package="$extra"
+    fi
     if [ -z "$uuid" ] || [[ "$uuid" == \#* ]]; then
         continue
     fi

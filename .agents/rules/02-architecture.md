@@ -38,7 +38,7 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
     - `version_gt <a> <b>`, `record_version <nome> <versao>` e `recorded_version <nome>` (registro em `~/.local/state/dotfiles/versions/` para o que não vem de pacote: temas, fontes, tema do GRUB, Plymouth).
 - `style/gnome/`: configuração do GNOME capturada de uma máquina já configurada e aplicada pelo módulo 11:
   - `dconf/*.ini`: chaves do dconf no formato de `dconf dump /` (`keybindings.ini`, `desktop.ini`, `shell.ini`, `apps.ini`). O marcador `@HOME@` é trocado pelo `$HOME` de quem aplica.
-  - `extensions.txt`: extensões ativas, uma por linha (`UUID [pacote Fedora]`).
+  - `extensions.txt`: extensões a instalar, uma por linha (`[disabled] UUID [pacote Fedora]`). As marcadas `disabled` são instaladas mas ficam desligadas: o que fica ativo é decidido por `enabled-extensions`/`disabled-extensions` em `dconf/shell.ini`. O exportador lista as ativas e as desativadas instaladas pelo usuário (pasta `~/.local/share/gnome-shell/extensions` ou pacote com motivo `User` no dnf5), nunca as que vêm com o sistema.
   - `burn-my-windows/profiles/`: perfis de efeito referenciados pelas configurações da extensão.
   - `bin/export-gnome-settings.sh`: gera os três itens acima a partir do GNOME em execução, filtrando estado da máquina (timestamps, tamanhos de janela) e caminhos de papel de parede, e descartando chaves e valores com cara de segredo ou e-mail (lista o que descartou e aborta se algo suspeito passar). Não edite os `.ini` à mão quando der para reexportar.
 - `.github/workflows/check.yml`: CI que roda o `tools/check.sh` a cada push e pull request (ação de checkout fixada por hash, token só de leitura).
