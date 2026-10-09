@@ -56,7 +56,7 @@ if is_apt; then
     sudo apt update
 
     # ─── Categorias de Pacotes (Ubuntu/Debian) ───
-    CLI_TOOLS="zsh git fzf btop bat zoxide tldr curl wget"
+    CLI_TOOLS="zsh git fzf htop bat zoxide tldr curl wget"
     GUI_APPS="vlc tilix gimp obs-studio"
     DEV_TOOLS="make cmake build-essential libssl-dev"
     DATABASES="mariadb-server sqlite3 postgresql"
@@ -121,7 +121,7 @@ elif is_dnf; then
     # ─── Categorias de Pacotes (Fedora) ───
     # Fedora ships Flatpak support inside gnome-software (no separate plugin package).
     # util-linux-script provides 'script', which app.sh uses to log --all runs
-    CLI_TOOLS="zsh git fzf btop bat eza zoxide tldr curl wget util-linux-script"
+    CLI_TOOLS="zsh git fzf htop bat eza zoxide tldr curl wget util-linux-script"
     GUI_APPS="vlc tilix gimp obs-studio"
     DEV_TOOLS="make cmake gcc gcc-c++ openssl-devel @development-tools"
     DATABASES="mariadb-server sqlite postgresql-server"
