@@ -47,10 +47,20 @@ if is_apt; then
         mongo_component="main"
     fi
 
-    # MongoDB 8.0
+    # MongoDB 8.0. The server is not published for every release: Debian 13 (trixie) only gets
+    # mongosh and the tools, so a release without the server uses the bookworm build, which
+    # runs on Debian 13 (as Fedora uses the RHEL 9 one). Offline, bookworm is assumed.
+    # (The index is read in full first: grep -q in a pipe could cut curl off mid-download.)
+    mongo_suite="$apt_suite"
+    if [ "$apt_base" = "debian" ]; then
+        mongo_index="$(curl -fsS "https://repo.mongodb.org/apt/debian/dists/$apt_suite/mongodb-org/8.0/main/binary-amd64/Packages" 2> /dev/null)" || mongo_index=""
+        if ! grep -qx 'Package: mongodb-org' <<< "$mongo_index"; then
+            mongo_suite="bookworm"
+        fi
+    fi
     if may_write /etc/apt/sources.list.d/mongodb-org-8.0.list; then
         curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | sudo gpg --yes --dearmor -o /usr/share/keyrings/mongodb-server-8.0.gpg
-        echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/$apt_base $apt_suite/mongodb-org/8.0 $mongo_component" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list > /dev/null
+        echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/$apt_base $mongo_suite/mongodb-org/8.0 $mongo_component" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list > /dev/null
     fi
 
     # Google Chrome

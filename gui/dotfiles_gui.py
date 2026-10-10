@@ -134,7 +134,8 @@ def gnome_detected():
     """Asks lib.sh, so the rule lives in one place (is_gnome)."""
     try:
         result = subprocess.run(
-            ["bash", "-c", 'source "$1" > /dev/null 2>&1 && is_gnome', "_", str(SCRIPTS_DIR / "lib.sh")],
+            # Inside 'if', so lib.sh's error trap does not report a plain "no"
+            ["bash", "-c", 'source "$1" > /dev/null 2>&1; if is_gnome; then exit 0; fi; exit 1', "_", str(SCRIPTS_DIR / "lib.sh")],
             env={**os.environ, "DOTFILES_UPDATE_POLICY": "keep"}, timeout=10, check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
@@ -237,12 +238,12 @@ class SetupWindow(Adw.ApplicationWindow):
 
         # Consecutive modules of the same category share a group, as in the menu
         group, category = None, None
-        for index, module in enumerate(self.modules, start=1):
+        for module in self.modules:
             if group is None or module.category != category:
                 category = module.category
                 group = Adw.PreferencesGroup(title=category.capitalize() or "Modules")
                 page.add(group)
-            group.add(self._build_module_row(index, module))
+            group.add(self._build_module_row(module))
 
         toolbar = Adw.ToolbarView()
         toolbar.add_top_bar(header)
@@ -305,11 +306,12 @@ class SetupWindow(Adw.ApplicationWindow):
         group.add(self.env_row)
         return group
 
-    def _build_module_row(self, index, module):
+    def _build_module_row(self, module):
         row = Adw.ActionRow(use_markup=False, activatable=True)
         row.set_title(module.description)
         row.set_subtitle(module.name)
-        row.add_prefix(Gtk.Label(label=f"{index:02d}", css_classes=["module-number", "dim-label"]))
+        # The file prefix, the same number the terminal menu shows
+        row.add_prefix(Gtk.Label(label=module.name[:2], css_classes=["module-number", "dim-label"]))
         icon = Gtk.Image(icon_name="media-playback-start-symbolic", tooltip_text="Run")
         row.add_suffix(icon)
         row.connect("activated", lambda *_: self._confirm_run_module(module))

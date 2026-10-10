@@ -88,7 +88,7 @@ _item() {
     local name_pad=$((24 - ${#name})); [ $name_pad -lt 0 ] && name_pad=0
     local rpad=$((INN - 33 - ${#desc} - 1));  [ $rpad -lt 0 ] && rpad=0
     printf "${C_BLUE}│${C_RESET}"
-    printf "  ${C_CYAN}${C_BOLD}%2d${C_RESET}" "$num"
+    printf "  ${C_CYAN}${C_BOLD}%2s${C_RESET}" "$num"
     printf "   ${C_BOLD}%s${C_RESET}%${name_pad}s" "$name" ""
     printf "  ${C_DIM}%s${C_RESET}" "$desc"
     printf "%${rpad}s " ""
@@ -128,7 +128,8 @@ show_menu() {
             _section "${categories[$i]}"
             _empty
         fi
-        _item "$((i+1))" "${scripts[$i]}" "${descriptions[$i]}"
+        # The number shown (and typed) is the file prefix, so "module 00" means 00-*.sh
+        _item "${scripts[$i]:0:2}" "${scripts[$i]}" "${descriptions[$i]}"
     done
 
     _empty
@@ -333,6 +334,17 @@ if [ "$MODE" = "all" ]; then
     echo -e "${C_BLUE}${C_BOLD}>> Rodando em Modo Headless (--all)${C_RESET}"
     echo -e "${C_DIM}>> Versoes: $POLICY_LABEL${C_RESET}"
     echo -e "${C_DIM}>> Modo: $CONFIG_LABEL${C_RESET}"
+
+    # Every module needs sudo. Without it (Debian installed with a root password), module 00
+    # sets it up with su first; the new group only works after a new login.
+    # (inside 'if', so lib.sh's error trap does not report a plain "no")
+    if ! bash -c 'source "$1" > /dev/null; if has_sudo_access; then exit 0; fi; exit 1' _ "$SCRIPT_DIR/lib.sh"; then
+        exec_header "Give your user sudo and log access"
+        bash "${SCRIPT_DIR}/00-sudoAccess.sh"
+        exec_footer "$?"
+        echo -e "${C_YELLOW}${C_BOLD}>> Log out and back in, then run ./app.sh --all again.${C_RESET}\n"
+        exit 1
+    fi
     start_sudo_keepalive
 
     failed=()
@@ -371,14 +383,21 @@ while true; do
         exit 0
     fi
 
-    if ! [[ "$choice" =~ ^[0-9]+$ ]] || \
-         [ "$choice" -lt 1 ] || [ "$choice" -gt "${#scripts[@]}" ]; then
+    # The module whose file prefix matches the number typed ("0", "00" and "13" all work)
+    index=""
+    if [[ "$choice" =~ ^[0-9]{1,2}$ ]]; then
+        for i in "${!scripts[@]}"; do
+            if [[ "${scripts[$i]:0:2}" =~ ^[0-9]{2}$ ]] && [ "$((10#${scripts[$i]:0:2}))" -eq "$((10#$choice))" ]; then
+                index=$i
+                break
+            fi
+        done
+    fi
+    if [ -z "$index" ]; then
         printf "\n  ${C_RED}Invalid option.${C_RESET}\n"
         press_enter
         continue
     fi
-
-    index=$((choice - 1))
     script_path="${SCRIPT_DIR}/${scripts[$index]}"
 
     exec_header "${descriptions[$index]}"

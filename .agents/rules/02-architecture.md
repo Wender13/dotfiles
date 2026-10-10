@@ -22,8 +22,9 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
   - Guarda de root: aborta se o módulo for executado como root ou via `sudo`.
   - Trap de erros global (`trap ERR` + `errtrace`): imprime arquivo, linha, comando e status, inclusive para falhas dentro de funções.
   - `print_header "Titulo"`.
-  - `detect_distro`: define `PKG_MANAGER` (`apt` ou `dnf`), exige dnf5 no Fedora e recusa a família RHEL e o Fedora Atomic (Silverblue, Kinoite).
-  - `is_apt` / `is_dnf`.
+  - `detect_distro`: define `PKG_MANAGER` (`apt` ou `dnf`), exige dnf5 no Fedora e Debian 13+ no Debian, e recusa a família RHEL e o Fedora Atomic (Silverblue, Kinoite).
+  - `is_apt` / `is_dnf` / `is_debian` (o Debian em si, não o Ubuntu).
+  - `admin_group` (`wheel` no Fedora, `sudo` no Debian/Ubuntu) e `has_sudo_access` (o comando existe e a sessão tem o grupo de administrador, ou há credencial do sudo em cache).
   - `is_gnome`, `gnome_only "etapa"` e `require_gnome`: detecção do GNOME (critério em `01-context.md`). `gnome_only` devolve 1 e avisa o que foi pulado; `require_gnome` encerra com sucesso os módulos que só configuram o GNOME (11 e 12).
   - Modo de configuração (`CONFIG_MODE`: `full` ou `missing`, de `DOTFILES_CONFIG_MODE` ou do `.env`): `only_missing` (verdadeiro no modo completar) e `keep_existing "o quê"` (avisa o que foi mantido). Regras de uso em `03-standards.md`, seção 2.2.
   - `ensure_command <cmd> [pkg_apt] [pkg_dnf]`: instala o pacote se o comando não existir.
@@ -49,16 +50,17 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
 ## Módulos
 | Módulo | Responsabilidade | sudo | `.env` |
 | --- | --- | --- | --- |
+| `00-sudoAccess.sh` | Instala o `sudo` se faltar e adiciona o usuário a `sudo`/`wheel`, `adm` e `systemd-journal`; sem sudo, usa o `su` (senha de root) uma única vez. Só adiciona, igual nos dois modos | só `su`, quando falta | - |
 | `01-setupEnv.sh` | Cria a estrutura `~/Dev` e clona os forks pessoais das extensões do GNOME (só no GNOME) e do tema GRUB | não | `GITHUB_USER` |
 | `02-permissions.sh` | Permissão de execução em `app.sh` e nos scripts de `scripts/`, `style/` e `tools/` | não | - |
 | `03-update.sh` | Atualiza sistema e Flatpaks conforme a política de versões; avisa sobre firmware (`fwupdmgr`) e reinício pendente | sim | - |
-| `04-commonPrograms.sh` | Remove o LibreOffice e, no GNOME, o bloatware do GNOME (no apt, só o que não arrasta outros pacotes), habilita RPM Fusion, codecs, driver VA-API da GPU (AMD/Intel) e pacotes base (GNOME Tweaks só no GNOME) | sim | - |
+| `04-commonPrograms.sh` | Remove o LibreOffice e, no GNOME, o bloatware do GNOME (no apt, só o que não arrasta outros pacotes), habilita RPM Fusion (no Debian, `contrib`/`non-free`), codecs, driver VA-API da GPU (AMD/Intel) e pacotes base (GNOME Tweaks só no GNOME) | sim | - |
 | `05-flatpakPrograms.sh` | Aplicativos via Flathub (Extension Manager só no GNOME; atualizações conforme a política de versões) | sim | - |
-| `06-externalRepos.sh` | Repositórios de fornecedores (VSCode, Chrome, MongoDB, Docker) e Docker Desktop | sim | - |
+| `06-externalRepos.sh` | Repositórios de fornecedores (VSCode, Chrome, MongoDB, Docker) e Docker Desktop; no Debian sem servidor MongoDB publicado (13), usa o build do bookworm | sim | - |
 | `07-gitAndSSH.sh` | Identidade Git global e chave SSH | não | `GIT_USERNAME`, `GIT_EMAIL` |
 | `08-terminalAndShell.sh` | zsh, oh-my-zsh, plugins, Spaceship, Nerd Fonts, shell padrão, `.zshrc` | só para trocar o shell | - |
 | `09-devEnvironments.sh` | Dependências do Tauri, Rust, eza, uv, Node (fnm), pnpm autônomo, Claude Code e Antigravity CLI | sim | - |
-| `10-themesAndGrub.sh` | Temas GNOME (Orchis, Tela Circle, Vimix; só no GNOME), GRUB oculto, tema GRUB opcional e Plymouth deus_ex | sim | `GRUB_THEME_ARGS` |
+| `10-themesAndGrub.sh` | Temas GNOME (Orchis, Tela Circle, Vimix; só no GNOME), GRUB oculto (no Debian, com `splash`), tema GRUB opcional e Plymouth deus_ex | sim | `GRUB_THEME_ARGS` |
 | `11-gnomeSettings.sh` | Só no GNOME (`require_gnome`): extensões, configurações do sistema e das extensões, apps fixados e atalhos | só para extensões empacotadas | - |
 | `12-wallpaperAndAvatar.sh` | Só no GNOME (`require_gnome`): papel de parede (cópia em `~/.local/share/backgrounds`, chaves via `gsettings`) e foto do usuário (recorte 512x512 com GdkPixbuf, entregue ao AccountsService via `busctl`), escolhidos no seletor do `zenity` ou pelo `.env` | só para instalar o `zenity`, se faltar | `WALLPAPER_IMAGE`, `AVATAR_IMAGE` |
 
@@ -67,7 +69,7 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
 ### Interativo (`./app.sh`)
 1. O usuário executa `./app.sh` como usuário normal.
 2. O `app.sh` descobre os módulos e lê `MENU_DESC` e `CATEGORY` de cada um.
-3. O usuário seleciona o número de um módulo.
+3. O usuário digita o número de um módulo, que é o prefixo do arquivo (`0` ou `00` para o `00-sudoAccess.sh`). A interface gráfica mostra o mesmo número.
 4. O `app.sh` invoca `bash scripts/<modulo>.sh`.
 5. O módulo importa `lib.sh`, detecta a distro, roda com segurança (`set -euo pipefail`) e retorna um código de saída.
 6. O `app.sh` exibe o resultado (`exec_footer`) e volta ao menu.
@@ -81,7 +83,7 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
 
 ### Headless (`./app.sh --all`)
 1. Grava a execução inteira em `~/.local/state/dotfiles/logs/setup-<data>.log` (pasta 700, os 10 mais recentes são mantidos). Com o `script` do util-linux disponível, o `app.sh` se reexecuta dentro dele (mantém o terminal, as barras de progresso e as cores); sem ele, usa `tee`. Só a saída é gravada, nunca o que é digitado.
-2. Pede a senha do sudo uma única vez e mantém o timestamp ativo em segundo plano enquanto roda. Ao terminar (inclusive por Ctrl+C), invalida as credenciais em cache (`sudo -k`).
+2. Checa se a sessão já pode usar o sudo (`has_sudo_access`). Se não pode (Debian instalado com senha de root), roda só o módulo 00, que pede a senha de root, e para pedindo logout e login. Depois, pede a senha do sudo uma única vez e mantém o timestamp ativo em segundo plano enquanto roda. Ao terminar (inclusive por Ctrl+C), invalida as credenciais em cache (`sudo -k`).
 3. Executa todos os módulos em ordem, sem limpar a tela, preservando a saída de cada um.
 4. A falha de um módulo não interrompe os seguintes. Ao final, lista os módulos que falharam, mostra o caminho do log e sai com código 1 (ou 0 se tudo deu certo).
 5. Sem `.env`, os módulos 01 e 07 perguntam os dados no terminal: o 01 permite pular, o 07 exige os dados. O 12 abre o seletor de arquivos (Cancelar mantém a imagem atual).
@@ -97,8 +99,10 @@ Para máquinas já configuradas em parte. O que cada módulo faz de diferente:
 - 10: não muda `GRUB_TIMEOUT`/`GRUB_TIMEOUT_STYLE` (e não regenera o `grub.cfg` sem mudança), mantém um `GRUB_THEME` que o projeto não instalou e a tela de boot atual.
 - 11: carrega só as chaves que o usuário ainda não definiu (`dconf read` vazio); em `enabled-extensions`, acrescenta as extensões do repositório que não estão ativas nem em `disabled-extensions`; não sobrescreve perfis do Burn My Windows.
 - 12: mantém um papel de parede definido (chave `picture-uri` no dconf) e uma foto existente no AccountsService.
+- 00: igual nos dois modos (só adiciona grupos).
 
 ## Dependências entre Módulos
+- Todo módulo que usa `sudo` depende do acesso que o 00 garante (no Debian instalado com senha de root, o usuário começa sem sudo). O `--all` checa isso antes de começar.
 - O 10 instala o tema GRUB a partir do repositório clonado pelo 01.
 - O 05 precisa do `flatpak`, instalado pelo 04 (o `ensure_command` cobre a execução isolada).
 - O `.zshrc` copiado pelo 08 é o do uso diário do dono do repositório. Ele coloca no PATH o que o 09 instala (fnm, pnpm em `$PNPM_HOME/bin`, cargo) e carrega cada ferramenta só se ela existir. Mudanças nele devem partir do `~/.zshrc` em uso, sem caminhos `/home/<usuário>`.

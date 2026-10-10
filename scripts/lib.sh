@@ -61,6 +61,11 @@ detect_distro() {
             exit 1
         fi
     elif [[ "$ids" == *" debian "* || "$ids" == *" ubuntu "* ]]; then
+        # Debian itself: 13 (trixie) or newer. Testing and sid have no VERSION_ID.
+        if [ "${ID:-}" = "debian" ] && [ -n "${VERSION_ID:-}" ] && [ "${VERSION_ID%%.*}" -lt 13 ]; then
+            echo -e "${C_RED}Debian 13 (trixie) or newer is required (found Debian ${VERSION_ID}).${C_RESET}" >&2
+            exit 1
+        fi
         PKG_MANAGER="apt"
     else
         echo -e "${C_RED}Unsupported distribution: ${ID:-unknown}${C_RESET}" >&2
@@ -70,6 +75,24 @@ detect_distro() {
 
 is_apt() { [ "$PKG_MANAGER" = "apt" ]; }
 is_dnf() { [ "$PKG_MANAGER" = "dnf" ]; }
+# Debian itself, not Ubuntu or another derivative (after detect_distro)
+is_debian() { [ "${ID:-}" = "debian" ]; }
+
+# Group whose members may use sudo: wheel on Fedora, sudo on Debian and Ubuntu
+admin_group() {
+    if is_dnf; then echo "wheel"; else echo "sudo"; fi
+}
+
+# True when this session can already use sudo: the command exists and the session belongs
+# to an admin group (a group added later only counts after a new login) or has a cached
+# sudo credential. Module 00 sets this up when it is missing.
+has_sudo_access() {
+    command -v sudo > /dev/null || return 1
+    if id -nG | tr ' ' '\n' | grep -qxE 'sudo|wheel|admin'; then
+        return 0
+    fi
+    sudo -n true 2> /dev/null
+}
 
 # ─── Desktop ──────────────────────────────────────────────────────────────────
 # The project targets GNOME. Everything GNOME-specific (settings, extensions, themes, GNOME

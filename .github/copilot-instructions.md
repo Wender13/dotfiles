@@ -5,7 +5,7 @@ Você está auxiliando no desenvolvimento de uma ferramenta de automação de Do
 ## 1. Arquitetura e Modularidade
 - O arquivo `app.sh` é o menu interativo de entrada (e o modo `--all`, headless). A interface gráfica (`gui/dotfiles_gui.py`, GTK 4 + libadwaita, aberta por `./app.sh --gui`) também só lista os módulos e os executa num terminal embutido. NÃO coloque lógica de instalação em nenhum dos dois.
 - Toda nova automação deve ser um script isolado em `scripts/NN-nome.sh`, com os cabeçalhos `# MENU_DESC:` (máximo 44 caracteres) e `# CATEGORY:`. O `app.sh` descobre os módulos sozinho; não há arrays para editar.
-- Use a biblioteca `scripts/lib.sh` (via `source`) para cores, detecção de distro (`detect_distro`, `is_apt`, `is_dnf`), detecção do GNOME (`is_gnome`, `gnome_only`, `require_gnome`), `ensure_command`, `clone_if_missing`, `load_env`, `ensure_flathub` e a política de versões (`install_packages`, `install_flatpaks`, `offer_git_updates`, `confirm_updates`).
+- Use a biblioteca `scripts/lib.sh` (via `source`) para cores, detecção de distro (`detect_distro`, `is_apt`, `is_dnf`, `is_debian`), acesso ao sudo (`admin_group`, `has_sudo_access`), detecção do GNOME (`is_gnome`, `gnome_only`, `require_gnome`), `ensure_command`, `clone_if_missing`, `load_env`, `ensure_flathub` e a política de versões (`install_packages`, `install_flatpaks`, `offer_git_updates`, `confirm_updates`).
 - O desktop alvo é o GNOME. Tudo que é específico dele (configurações, extensões, temas, apps do GNOME) passa por `require_gnome` (módulo inteiro) ou `if gnome_only "etapa"; then ... fi` (etapa); em outros desktops é pulado com aviso, nunca com erro.
 
 ## 2. Qualidade e Resiliência (Fail-Fast)
@@ -22,6 +22,7 @@ Você está auxiliando no desenvolvimento de uma ferramenta de automação de Do
 - Um nome de pacote inválido aborta a transação inteira: valide com `dnf repoquery --available` e `dnf install --assumeno`.
 - Antes de remover pacotes, cheque as dependências reversas (`dnf remove --assumeno`).
 - Detalhes em `.agents/rules/06-fedora.md`.
+- O Debian 13+ com GNOME também é suportado (ramo `apt`, `is_debian`): `contrib`/`non-free` habilitados pelo módulo 04, nomes de pacote próprios (`tealdeer` no lugar de `tldr`), ferramentas de administração em `/usr/sbin` e sudo dado pelo módulo 00. Detalhes e validação em container em `.agents/rules/07-debian.md`.
 
 ## 4. Segurança de Dados (Zero Secrets)
 - É ESTRITAMENTE PROIBIDO fazer hardcode de senhas, e-mails, nomes de usuário (usernames), tokens de API ou chaves SSH nos scripts.

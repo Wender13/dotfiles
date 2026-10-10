@@ -73,6 +73,9 @@ for f in "${MODULES[@]}"; do
     fi
 done
 [ -x app.sh ] || { fail "app.sh: not executable (chmod +x)"; modules_ok=0; }
+# The menu number is the file prefix, so two modules cannot share one
+duplicates="$(for f in "${MODULES[@]}"; do basename "$f" | cut -c1-2; done | sort | uniq -d | tr '\n' ' ')"
+[ -z "$duplicates" ] || { fail "modules share a number prefix: $duplicates"; modules_ok=0; }
 [ "$modules_ok" -eq 1 ] && ok "${#MODULES[@]} modules follow the header, preamble, naming and GNOME guard rules"
 
 echo "Menu rendering"

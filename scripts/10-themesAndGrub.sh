@@ -134,6 +134,15 @@ if [ -f "$GRUB_CONF" ]; then
         # Hide GRUB but keep it ready
         set_grub_option GRUB_TIMEOUT 0
         set_grub_option GRUB_TIMEOUT_STYLE hidden
+        # Plymouth only draws its theme with "splash" on the kernel command line. Fedora boots
+        # with rhgb and Ubuntu already has "quiet splash"; Debian's default is just "quiet".
+        if is_debian && ! grep -qE '^GRUB_CMDLINE_LINUX_DEFAULT=".*\bsplash\b' "$GRUB_CONF"; then
+            if grep -q '^GRUB_CMDLINE_LINUX_DEFAULT="' "$GRUB_CONF"; then
+                sudo sed -i -E 's/^(GRUB_CMDLINE_LINUX_DEFAULT="[^"]*)"/\1 splash"/' "$GRUB_CONF"
+            else
+                echo 'GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"' | sudo tee -a "$GRUB_CONF" > /dev/null
+            fi
+        fi
         grub_changed=1
     fi
 
@@ -193,19 +202,30 @@ PLYMOUTH_THEME="deus_ex"
 PLYMOUTH_PACK="pack_2"
 print_header "Configuring Plymouth ($PLYMOUTH_THEME)"
 
-# Fedora and Debian ship plymouth-set-default-theme; Ubuntu manages the theme as an alternative
+# Fedora and Debian ship plymouth-set-default-theme (on Debian in /usr/sbin, outside a normal
+# user's PATH; the theme lives in plymouthd.conf there); Ubuntu manages it as an alternative.
+plymouth_tool() {
+    local tool
+    tool="$(command -v plymouth-set-default-theme)" || tool=""
+    if [ -z "$tool" ] && [ -x /usr/sbin/plymouth-set-default-theme ]; then
+        tool=/usr/sbin/plymouth-set-default-theme
+    fi
+    echo "$tool"
+}
+
 current_plymouth_theme() {
-    if command -v plymouth-set-default-theme &>/dev/null; then
-        plymouth-set-default-theme
+    if [ -n "$(plymouth_tool)" ]; then
+        "$(plymouth_tool)"
     else
         basename "$(dirname "$(readlink -f /usr/share/plymouth/themes/default.plymouth)")"
     fi
 }
 
 set_plymouth_theme() {
-    if command -v plymouth-set-default-theme &>/dev/null; then
-        # -R rebuilds the initramfs (dracut on Fedora), which is where the splash is loaded from
-        sudo plymouth-set-default-theme -R "$1"
+    if [ -n "$(plymouth_tool)" ]; then
+        # -R rebuilds the initramfs (dracut on Fedora, update-initramfs on Debian), which is
+        # where the splash is loaded from
+        sudo "$(plymouth_tool)" -R "$1"
     else
         local file="/usr/share/plymouth/themes/$1/$1.plymouth"
         sudo update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth "$file" 100

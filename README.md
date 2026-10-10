@@ -4,7 +4,8 @@ Coleção de scripts Bash que transforma uma instalação limpa de Linux em um a
 
 - **Alvo principal**: Fedora 41 ou superior (dnf5), com GNOME. Validado no Fedora 44.
 - **Outros desktops** (KDE, Xfce, COSMIC...): o app detecta o GNOME e, fora dele, pula com um aviso tudo o que é do GNOME (configurações, extensões, temas, GNOME Tweaks, Extension Manager, papel de parede e foto). O resto funciona normalmente.
-- **Suporte secundário**: Debian, Ubuntu e derivados (apt). Validado por simulação num container Ubuntu 24.04, não numa instalação real.
+- **Debian 13 (trixie) ou mais novo, com GNOME**: suportado. Validado num container Debian 13 com apt real (repositórios, chaves e resolução de todos os pacotes), não numa instalação real.
+- **Suporte secundário**: Ubuntu e derivados (apt). Validado por simulação num container Ubuntu 24.04.
 - **Não suportado**: RHEL, CentOS, Rocky e Alma (o ramo dnf depende de repositórios exclusivos do Fedora) e Fedora Atomic (Silverblue, Kinoite), onde pacotes são aplicados com rpm-ostree.
 
 Todos os módulos são **idempotentes**: rodar de novo não duplica nada e completa o que ficou faltando numa execução interrompida.
@@ -23,10 +24,10 @@ Todos os módulos são **idempotentes**: rodar de novo não duplica nada e compl
 - [Licença](#licença)
 
 ## Requisitos
-- Usuário comum com permissão de `sudo`. **Não execute como root nem com `sudo ./app.sh`**: os módulos instalam coisas no `$HOME` e pedem `sudo` só quando precisam (o projeto bloqueia a execução como root).
+- Usuário comum com permissão de `sudo`. No Debian instalado com senha de root, o usuário fica sem sudo (e o `sudo` pode nem estar instalado): o módulo 00 resolve isso pedindo a senha de root uma vez, e o `--all` o chama sozinho quando precisa. **Não execute como root nem com `sudo ./app.sh`**: os módulos instalam coisas no `$HOME` e pedem `sudo` só quando precisam (o projeto bloqueia a execução como root).
 - `git` para clonar o repositório e conexão com a internet.
-- Interface gráfica (opcional): Python com GTK 4, libadwaita e VTE. Já vêm no Fedora Workstation; no Ubuntu, `sudo apt install python3-gi gir1.2-adw-1 gir1.2-vte-3.91`.
-- Fedora Workstation (GNOME) para a experiência completa. Em outros desktops, as etapas do GNOME são puladas (ver [Módulos](#módulos)). A parte de boot do módulo 10 assume GRUB; sem `/etc/default/grub`, ela é pulada.
+- Interface gráfica (opcional): Python com GTK 4, libadwaita 1.7+ e VTE. Já vêm no Fedora Workstation; no Debian 13 e no Ubuntu, `sudo apt install python3-gi gir1.2-adw-1 gir1.2-vte-3.91`.
+- Fedora Workstation ou Debian 13 com GNOME para a experiência completa. Em outros desktops, as etapas do GNOME são puladas (ver [Módulos](#módulos)). A parte de boot do módulo 10 assume GRUB; sem `/etc/default/grub`, ela é pulada.
 
 ## Início rápido
 ```bash
@@ -39,6 +40,8 @@ $EDITOR .env
 ./app.sh --only-missing   # numa máquina já configurada em parte (caso de uso 4)
 ```
 Se o `./app.sh` der "Permissão negada", rode `bash app.sh` uma vez e escolha o módulo `02` (permissões), ou execute `chmod +x app.sh`.
+
+No Debian, se o seu usuário ainda não tem sudo, comece pelo módulo `00` (ou deixe o `./app.sh --all` chamá-lo): ele pede a senha de **root** uma vez; depois faça logout e login.
 
 ## Configuração (.env)
 O `.env` fica na raiz, é ignorado pelo git e guarda os dados pessoais. Nenhum dado pessoal fica nos scripts.
@@ -63,8 +66,10 @@ No Fedora, inclua `-b` em `GRUB_THEME_ARGS`: o `/boot` é uma partição separad
 cp .env.example .env && $EDITOR .env   # preencha todas as chaves
 ./app.sh --all
 ```
+**No Debian**, se o seu usuário ainda não tem sudo, a primeira execução do `--all` roda só o módulo 00: ele pede a **senha de root** uma vez, instala o `sudo` se faltar e põe você nos grupos `sudo`, `adm` e `systemd-journal`. Faça logout e login e rode `./app.sh --all` de novo. O resto é igual ao Fedora, com as diferenças do Debian tratadas pelos módulos: `contrib` e `non-free` habilitados (o equivalente do RPM Fusion, para codecs e o driver de vídeo da Intel), `tealdeer` no lugar do `tldr`, `splash` na linha de boot para a tela do Plymouth aparecer e o MongoDB do repositório do Debian 12, que roda no 13 (a MongoDB ainda não publica o servidor para o 13).
+
 - A senha do `sudo` é pedida **uma única vez**, no início, e mantida ativa durante toda a execução. Ao terminar, as credenciais em cache são invalidadas (`sudo -k`).
-- Os módulos rodam em ordem (01 a 12), sem limpar a tela, então a saída de cada um fica no histórico do terminal.
+- Os módulos rodam em ordem (00 a 12), sem limpar a tela, então a saída de cada um fica no histórico do terminal.
 - Por padrão o `--all` **não mexe no que já está instalado** (política `keep`): só instala o que falta e lista o que tem versão mais nova. Para ser perguntado, use `./app.sh --all --ask`; para atualizar tudo, `./app.sh --all --update` (caso de uso 5).
 - Rode a partir de um terminal **dentro da sessão do GNOME**: os módulos 11 e 12 aplicam as configurações pela sessão gráfica.
 - A máquina já está configurada em parte? Use `./app.sh --all --only-missing`: nada é removido e o que você já configurou fica (caso de uso 4).
@@ -90,7 +95,7 @@ Digite o número do módulo, acompanhe a execução, pressione Enter para voltar
 ```bash
 bash scripts/05-flatpakPrograms.sh
 ```
-Útil em scripts próprios ou para repetir uma única etapa. Cada módulo funciona sozinho: dependências básicas (git, curl, flatpak, zsh) são instaladas se faltarem.
+Útil em scripts próprios ou para repetir uma única etapa. Cada módulo funciona sozinho: dependências básicas (git, curl, flatpak, zsh) são instaladas se faltarem. Os módulos usam `sudo`: num Debian em que o seu usuário ainda não o tem, rode antes o `00`.
 
 ### 4. Completar um sistema já configurado (ou uma instalação interrompida)
 Para uma instalação interrompida, rode o mesmo módulo (ou o `--all`) de novo. O que já foi feito é detectado e pulado: pacotes instalados, repositórios configurados, clones existentes, fontes, temas, Node LTS e a chave SSH. O que já existe só é atualizado conforme a política de versões (caso de uso 5).
@@ -120,7 +125,7 @@ O que muda em cada módulo:
 | 10 | Instala os temas que faltam; mantém as configurações do GRUB, um tema do GRUB que você já usa e a tela de boot atual |
 | 11 | Instala as extensões que faltam; aplica só as configurações do GNOME que você ainda não definiu; acrescenta à sua lista de extensões ativas as do repositório que você não ativou nem desativou |
 | 12 | Mantém o papel de parede e a foto que você já escolheu; só pergunta o que ainda está no padrão |
-| 02, 03, 05, 09 | Iguais: só instalam o que falta (o 03 só lista as atualizações, pela política `keep`) |
+| 00, 02, 03, 05, 09 | Iguais: só instalam ou adicionam o que falta (o 00 só acrescenta grupos) (o 03 só lista as atualizações, pela política `keep`) |
 
 Cada item mantido aparece na saída como "Only-missing mode: keeping ...". Os Flatpaks e pacotes da lista que você desinstalou de propósito voltam a ser instalados (não há como distinguir "nunca instalado" de "removido"); para evitar, rode pelo menu só os módulos que quiser.
 
@@ -245,16 +250,17 @@ Antigravity, Claude Code, Cursor e GitHub Copilot já encontram as regras do pro
 
 | Nº | Script | O que faz | sudo |
 | --- | --- | --- | --- |
+| 00 | `00-sudoAccess.sh` | Dá ao seu usuário o sudo e a leitura de logs: instala o `sudo` se faltar e adiciona os grupos `sudo` (`wheel` no Fedora), `adm` e `systemd-journal`. Sem sudo ainda, pede a senha de root uma vez (`su`). Nunca remove grupos | só via `su`, quando falta |
 | 01 | `01-setupEnv.sh` | Cria `~/Dev/{linux_projects,personal_projects,college_projects}` e clona os forks pessoais das extensões do GNOME (só no GNOME) e do tema GRUB | não |
 | 02 | `02-permissions.sh` | Dá permissão de execução a `app.sh` e aos scripts de `scripts/`, `style/` e `tools/` | não |
 | 03 | `03-update.sh` | Atualiza pacotes do sistema e Flatpaks conforme a política de versões, remove dependências órfãs e avisa sobre firmware e reinício | sim |
-| 04 | `04-commonPrograms.sh` | Remove LibreOffice e, no GNOME, o bloatware do GNOME; habilita o RPM Fusion; instala codecs (ffmpeg completo e grupo multimedia) e o driver de aceleração de vídeo da GPU detectada (AMD ou Intel; NVIDIA só recebe um aviso); instala ferramentas de CLI (zsh, git, fzf, htop, bat, eza, zoxide, tldr, curl, wget, script), apps (VLC, Tilix, GIMP, OBS Studio e, no GNOME, GNOME Tweaks), ferramentas de dev, bancos de dados, Podman, Flatpak, Python, Java, Maven e powerline-fonts; garante o Flathub. No apt, só remove o bloatware que não arrastaria outros pacotes | sim |
+| 04 | `04-commonPrograms.sh` | Remove LibreOffice e, no GNOME, o bloatware do GNOME; habilita o RPM Fusion (no Debian, `contrib` e `non-free`); instala codecs (ffmpeg completo e grupo multimedia) e o driver de aceleração de vídeo da GPU detectada (AMD ou Intel; NVIDIA só recebe um aviso); instala ferramentas de CLI (zsh, git, fzf, htop, bat, eza, zoxide, tldr (`tealdeer` no Debian), curl, wget, script), apps (VLC, Tilix, GIMP, OBS Studio e, no GNOME, GNOME Tweaks), ferramentas de dev, bancos de dados, Podman, Flatpak, Python, Java, Maven e powerline-fonts; garante o Flathub. No apt, só remove o bloatware que não arrastaria outros pacotes | sim |
 | 05 | `05-flatpakPrograms.sh` | Instala os aplicativos Flatpak listados no caso de uso 11 que faltam; atualizações seguem a política de versões | sim |
-| 06 | `06-externalRepos.sh` | Configura os repositórios oficiais e instala VSCode, Chrome, MongoDB, Docker CE e Docker Desktop; habilita o serviço docker e adiciona o usuário ao grupo `docker` | sim |
+| 06 | `06-externalRepos.sh` | Configura os repositórios oficiais e instala VSCode, Chrome, MongoDB (no Debian 13, o build do Debian 12, porque o servidor não é publicado para o 13), Docker CE e Docker Desktop; habilita o serviço docker e adiciona o usuário ao grupo `docker` | sim |
 | 07 | `07-gitAndSSH.sh` | Identidade Git global e chave SSH ed25519 | não |
 | 08 | `08-terminalAndShell.sh` | zsh, oh-my-zsh, plugins, Spaceship, Nerd Fonts, shell padrão e `.zshrc` | só para trocar o shell |
 | 09 | `09-devEnvironments.sh` | Dependências do Tauri e toolchain C, Rust, eza, uv, Node.js LTS (fnm), pnpm autônomo, Claude Code e Antigravity CLI (instaladores oficiais) | sim |
-| 10 | `10-themesAndGrub.sh` | Orchis, Tela Circle e Vimix (só no GNOME), GRUB oculto, tema GRUB opcional e tela de boot Plymouth deus_ex | sim |
+| 10 | `10-themesAndGrub.sh` | Orchis, Tela Circle e Vimix (só no GNOME), GRUB oculto (no Debian, com `splash` na linha de boot), tema GRUB opcional e tela de boot Plymouth deus_ex | sim |
 | 11 | `11-gnomeSettings.sh` | Só no GNOME: extensões, configurações do sistema e das extensões, apps do dock e atalhos | só para extensões empacotadas no Fedora |
 | 12 | `12-wallpaperAndAvatar.sh` | Só no GNOME: papel de parede e foto do usuário, escolhidos num seletor de arquivos ou pelo `.env` | só para instalar o `zenity` (seletor), se faltar |
 
@@ -265,10 +271,10 @@ No Fedora, o pacote `malcontent` (controle parental) **não** é removido, porqu
 ## O que o projeto altera no sistema
 Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de uso 4, nada é removido e o que já existe fica como está):
 - **Pacotes**: instalações e remoções via dnf/apt e Flatpak de sistema.
-- **Repositórios**: RPM Fusion; `/etc/yum.repos.d/` (`vscode.repo`, `mongodb-org-8.0.repo`, `docker-ce.repo`); habilitação do repositório `google-chrome`; remoto Flathub habilitado e sem filtro.
-- **Serviços e grupos**: `docker` habilitado e iniciado; seu usuário entra no grupo `docker`.
+- **Repositórios**: RPM Fusion; `/etc/yum.repos.d/` (`vscode.repo`, `mongodb-org-8.0.repo`, `docker-ce.repo`); habilitação do repositório `google-chrome`; remoto Flathub habilitado e sem filtro; no Debian, `contrib` e `non-free` nas fontes do Debian (backup `.bak` uma vez) e `/etc/apt/sources.list.d/` (`vscode.list`, `mongodb-org-8.0.list`, `google-chrome.list`, `docker.list`).
+- **Serviços e grupos**: `docker` habilitado e iniciado; seu usuário entra nos grupos `docker`, `sudo` ou `wheel`, `adm` e `systemd-journal` (módulo 00). Nenhum grupo é removido.
 - **Usuário**: o shell padrão passa a ser o zsh (`usermod --shell`); a foto escolhida no módulo 12 é entregue ao AccountsService, que guarda a cópia dele em `/var/lib/AccountsService/icons/`.
-- **Boot**: `/etc/default/grub` (com backup) e `/boot/grub2/grub.cfg`; tema GRUB em `/boot/grub2/themes` (com `-b`); tema Plymouth em `/usr/share/plymouth/themes/deus_ex`, com o initramfs reconstruído.
+- **Boot**: `/etc/default/grub` (com backup) e `/boot/grub2/grub.cfg`; tema GRUB em `/boot/grub2/themes` (com `-b`); tema Plymouth em `/usr/share/plymouth/themes/deus_ex`, com o initramfs reconstruído; no Debian, `splash` em `GRUB_CMDLINE_LINUX_DEFAULT` e o tema em `/etc/plymouth/plymouthd.conf`.
 - **Configurações do GNOME (dconf do seu usuário)**: as chaves de `style/gnome/dconf/*.ini`. Só as chaves listadas são alteradas; o resto fica como está. O módulo 12 altera também o papel de parede (`org.gnome.desktop.background` e `org.gnome.desktop.screensaver`).
 - **No `$HOME`**: `~/Dev`, `~/.oh-my-zsh`, `~/.zshrc` (com backup), `~/.local/share/fonts/NerdFonts`, temas em `~/.themes` e `~/.local/share/icons`, extensões em `~/.local/share/gnome-shell/extensions`, `~/.config/burn-my-windows`, cópias dos papéis de parede em `~/.local/share/backgrounds`, `~/.cargo`, `~/.rustup`, `~/.local/share/fnm`, `~/.local/share/pnpm`, Claude Code em `~/.local/bin/claude` e `~/.local/share/claude`, Antigravity em `~/.local/bin/agy`, logs em `~/.local/state/dotfiles/logs`, versões registradas em `~/.local/state/dotfiles/versions`, preferência de tema da interface gráfica em `~/.config/dotfiles/gui.ini` e o atalho dela em `~/.local/share/applications/local.dotfiles.Setup.desktop` (só se você pedir), `~/.gitconfig` e `~/.ssh`.
 
@@ -278,6 +284,8 @@ Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de us
 - **"[ERRO CRITICO] Falha na execucao do script!"**: a mensagem mostra o arquivo, a linha, o comando e o status. Corrija a causa (rede, repositório fora do ar, pacote renomeado) e rode o módulo de novo.
 - **"No match for argument" no dnf**: um pacote foi renomeado ou removido numa nova versão do Fedora. Confira com `dnf repoquery --available <nome>` e atualize a lista no módulo.
 - **"Do not run this as root"**: rode como seu usuário, sem `sudo` na frente.
+- **"sudo: command not found"** ou **"is not in the sudoers file"** (Debian instalado com senha de root): rode `./app.sh`, escolha o módulo `00` e digite a senha de **root** quando o `su` pedir; depois faça logout e login. O `./app.sh --all` faz isso sozinho.
+- **"Debian 13 (trixie) or newer is required"**: o projeto suporta o Debian 13 em diante (a interface gráfica precisa da libadwaita 1.7). Atualize o sistema antes.
 - **"Fedora 41+ (dnf5) is required"** ou **"Unsupported distribution"**: a distribuição não é suportada (ver o topo deste README).
 - **`docker` exige sudo**: faça logout e login para o grupo `docker` valer.
 - **O terminal continua no bash**: o novo shell vale a partir do próximo login.
@@ -316,7 +324,7 @@ Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de us
 ## Desenvolvimento
 
 ### Adicionar um novo módulo
-1. Crie `scripts/NN-nome.sh`. O número define a posição no menu e no `--all`.
+1. Crie `scripts/NN-nome.sh`. O número define a posição no menu e no `--all` e é o que se digita no menu, então não pode repetir (o `tools/check.sh` confere).
 2. Use o cabeçalho e o preâmbulo padrão:
    ```bash
    #!/bin/bash
@@ -338,6 +346,8 @@ Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de us
 | --- | --- |
 | `detect_distro` | Define `PKG_MANAGER` (`apt`/`dnf`); aborta em distribuições não suportadas |
 | `is_apt` / `is_dnf` | Condicionais por gerenciador de pacotes |
+| `is_debian` | Verdadeiro no Debian em si (não no Ubuntu), para o que só existe ou só falta lá |
+| `admin_group` / `has_sudo_access` | Grupo de administrador da distribuição (`wheel` ou `sudo`) e se esta sessão já pode usar o sudo |
 | `is_gnome` | Verdadeiro quando o GNOME é detectado (sem mensagem) |
 | `gnome_only "etapa"` | Para etapas do GNOME: `if gnome_only "GNOME Tweaks"; then ...; fi`. Fora do GNOME, avisa o que foi pulado |
 | `require_gnome` | Para módulos que só configuram o GNOME: fora dele, encerra o módulo com sucesso |
@@ -372,19 +382,19 @@ Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de us
 
 ### Validar mudanças sem tocar no sistema
 ```bash
-bash tools/check.sh                       # sintaxe, shellcheck, convenções, menu, dados pessoais
+bash tools/check.sh                       # sintaxe, shellcheck, convenções, menu, dados pessoais, emojis
 dnf repoquery --available <pacote>        # o pacote existe?
 dnf install --assumeno <lista de pacotes> # a transação resolve? (sem root)
 dnf remove --assumeno <pacote>            # o que mais seria removido? (sem root)
 ```
 O `tools/check.sh` nunca executa módulos nem usa `sudo`. O shellcheck roda num container com a versão fixa 0.11.0 (podman ou docker), para dar o mesmo resultado em qualquer máquina; sem container, usa o shellcheck local. O **CI** (`.github/workflows/check.yml`) roda o mesmo script a cada push e pull request no GitHub.
-Módulos que não exigem root (01, 07, 08) podem ser testados com `HOME` apontando para um diretório temporário. Para ver o comportamento fora do GNOME, rode o módulo com `XDG_CURRENT_DESKTOP=KDE`. Nunca teste o 11 ou o 12 com a sessão D-Bus real: aponte `DBUS_SESSION_BUS_ADDRESS` para um socket inexistente e use `dconf`/`gsettings` falsos (detalhes em `.agents/rules/03-standards.md`). A interface gráfica é testada numa cópia com módulos falsos, num display sem tela (broadway), também descrito lá.
+Módulos que não exigem root (01, 07, 08) podem ser testados com `HOME` apontando para um diretório temporário. O ramo do Debian é validado rodando os módulos num container `debian:13` com apt de verdade e instalações simuladas (receita em `.agents/rules/07-debian.md`). Para ver o comportamento fora do GNOME, rode o módulo com `XDG_CURRENT_DESKTOP=KDE`. Nunca teste o 11 ou o 12 com a sessão D-Bus real: aponte `DBUS_SESSION_BUS_ADDRESS` para um socket inexistente e use `dconf`/`gsettings` falsos (detalhes em `.agents/rules/03-standards.md`). A interface gráfica é testada numa cópia com módulos falsos, num display sem tela (broadway), também descrito lá.
 
 ### Commits
 Em inglês, no padrão Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`), com título curto e corpo explicando o porquê. Detalhes em `.agents/rules/05-security-and-git.md`.
 
 ## Trabalhando com agentes de IA
-As regras do projeto ficam em `.agents/rules/` (formato do Antigravity, carregadas automaticamente por ele) e cobrem contexto, arquitetura, padrões, backlog, segurança e Fedora. Cada ferramenta tem seu ponto de entrada:
+As regras do projeto ficam em `.agents/rules/` (formato do Antigravity, carregadas automaticamente por ele) e cobrem contexto, arquitetura, padrões, backlog, segurança, Fedora e Debian. Cada ferramenta tem seu ponto de entrada:
 
 | Ferramenta | Arquivo | Como carrega as regras |
 | --- | --- | --- |

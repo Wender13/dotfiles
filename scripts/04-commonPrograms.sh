@@ -20,6 +20,32 @@ if gnome_only "the GNOME bloatware removal and GNOME Tweaks"; then
     GNOME=1
 fi
 
+# Debian enables only "main" (and non-free-firmware). Codecs and the Intel video driver are
+# in contrib and non-free, Debian's counterpart of RPM Fusion: they are added to every Debian
+# source (deb822 file or one-line sources.list), keeping a one-time backup. This only adds
+# components, so it runs in the only-missing mode too.
+enable_debian_components() {
+    local file updated
+    for file in /etc/apt/sources.list.d/debian.sources /etc/apt/sources.list; do
+        [ -f "$file" ] || continue
+        updated="$(mktemp)"
+        sed -E \
+            -e '/^Components:/ { / contrib( |$)/! s/$/ contrib/; / non-free( |$)/! s/$/ non-free/ }' \
+            -e '/^deb(-src)?[[:space:]].*\/debian/ { / contrib( |$)/! s/$/ contrib/; / non-free( |$)/! s/$/ non-free/ }' \
+            "$file" > "$updated"
+        if cmp -s "$file" "$updated"; then
+            echo -e "${C_YELLOW}contrib and non-free already enabled in $file.${C_RESET}"
+        else
+            if [ ! -f "$file.bak" ]; then
+                sudo cp -a "$file" "$file.bak"
+            fi
+            sudo install -m 0644 "$updated" "$file"
+            echo "Enabled contrib and non-free in $file (backup: $file.bak)"
+        fi
+        rm -f "$updated"
+    done
+}
+
 if is_apt; then
     print_header "Removing LibreOffice and GNOME bloatware"
     if only_missing; then
@@ -53,10 +79,20 @@ if is_apt; then
         fi
     fi
 
+    if is_debian; then
+        print_header "Enabling Debian contrib and non-free"
+        enable_debian_components
+    fi
+
     sudo apt update
 
     # ─── Categorias de Pacotes (Ubuntu/Debian) ───
-    CLI_TOOLS="zsh git fzf htop bat zoxide tldr curl wget"
+    # Debian packages the tldr client as tealdeer (same 'tldr' command)
+    TLDR="tldr"
+    if is_debian; then
+        TLDR="tealdeer"
+    fi
+    CLI_TOOLS="zsh git fzf htop bat zoxide $TLDR curl wget"
     GUI_APPS="vlc tilix gimp obs-studio"
     DEV_TOOLS="make cmake build-essential libssl-dev"
     DATABASES="mariadb-server sqlite3 postgresql"
