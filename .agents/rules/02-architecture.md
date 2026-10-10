@@ -63,6 +63,7 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
 | `10-themesAndGrub.sh` | Temas GNOME (Orchis, Tela Circle, Vimix; só no GNOME), GRUB oculto (no Debian, com `splash`), tema GRUB opcional e Plymouth deus_ex | sim | `GRUB_THEME_ARGS` |
 | `11-gnomeSettings.sh` | Só no GNOME (`require_gnome`): extensões, configurações do sistema e das extensões, apps fixados e atalhos | só para extensões empacotadas | - |
 | `12-wallpaperAndAvatar.sh` | Só no GNOME (`require_gnome`): papel de parede (cópia em `~/.local/share/backgrounds`, chaves via `gsettings`) e foto do usuário (recorte 512x512 com GdkPixbuf, entregue ao AccountsService via `busctl`), escolhidos no seletor do `zenity` ou pelo `.env` | só para instalar o `zenity`, se faltar | `WALLPAPER_IMAGE`, `AVATAR_IMAGE` |
+| `13-desktopApps.sh` | Claude Desktop (repositório apt oficial, só Debian/Ubuntu; chave conferida pela impressão digital; grupo `kvm` para o Cowork) e Antigravity IDE (tarball oficial em `~/.local/share/antigravity-ide`, comando `antigravity-ide`, atalho no menu; versão nova lida na página de download e oferecida pela política) | só para o Claude Desktop | - |
 
 ## O Fluxo de Execução
 
@@ -99,10 +100,12 @@ Para máquinas já configuradas em parte. O que cada módulo faz de diferente:
 - 10: não muda `GRUB_TIMEOUT`/`GRUB_TIMEOUT_STYLE` (e não regenera o `grub.cfg` sem mudança), mantém um `GRUB_THEME` que o projeto não instalou e a tela de boot atual.
 - 11: carrega só as chaves que o usuário ainda não definiu (`dconf read` vazio); em `enabled-extensions`, acrescenta as extensões do repositório que não estão ativas nem em `disabled-extensions`; não sobrescreve perfis do Burn My Windows.
 - 12: mantém um papel de parede definido (chave `picture-uri` no dconf) e uma foto existente no AccountsService.
+- 13: mantém um atalho do Antigravity IDE que já existe; com o Claude Desktop já instalado, não mexe nos grupos (o `kvm` só entra junto com uma instalação nova).
 - 00: igual nos dois modos (só adiciona grupos).
 
 ## Dependências entre Módulos
 - Todo módulo que usa `sudo` depende do acesso que o 00 garante (no Debian instalado com senha de root, o usuário começa sem sudo). O `--all` checa isso antes de começar.
+- O 13 instala os apps Desktop das CLIs que o 09 instala (`claude` e `agy`); os dois módulos são independentes.
 - O 10 instala o tema GRUB a partir do repositório clonado pelo 01.
 - O 05 precisa do `flatpak`, instalado pelo 04 (o `ensure_command` cobre a execução isolada).
 - O `.zshrc` copiado pelo 08 é o do uso diário do dono do repositório. Ele coloca no PATH o que o 09 instala (fnm, pnpm em `$PNPM_HOME/bin`, cargo) e carrega cada ferramenta só se ela existir. Mudanças nele devem partir do `~/.zshrc` em uso, sem caminhos `/home/<usuário>`.

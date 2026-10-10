@@ -42,6 +42,7 @@ Passe ao `dnf remove` somente os pacotes de fato instalados (`rpm -qa --qf '%{NA
 - **MongoDB**: não há repositório para Fedora; usa-se o de RHEL 9 (`repo.mongodb.org/yum/redhat/9`).
 - **Docker CE**: use o `docker-ce.repo` oficial com `addrepo`. Antes de uma nova versão do Fedora, confira em docs.docker.com se ela já é suportada.
 - **Claude Code**: não usa repositório. Por decisão do usuário, segue o método recomendado no site oficial (instalador nativo, módulo 09), sem `sudo`.
+- **Claude Desktop**: a Anthropic só publica pacote para Debian e Ubuntu. No Fedora o módulo 13 avisa e pula; conversores do `.deb` para RPM da comunidade não são usados (decisão do usuário). Quando sair o pacote oficial do Fedora, ele entra no 13.
 - **Flathub**: remoto de sistema, garantido pelo `ensure_flathub` (adiciona, habilita e remove filtros).
 - **Aceleração de vídeo (VA-API)**: o Mesa do Fedora vem sem H.264/H.265. AMD: `mesa-va-drivers-freeworld` (RPM Fusion free); Intel: `intel-media-driver` (RPM Fusion nonfree). Não faça a troca do `mesa-vulkan-drivers-freeworld`: no Fedora 44 a versão dele estava atrás da do Fedora e o dnf resolveu para o pacote i686, substituindo quatro pacotes. NVIDIA não é automatizada (módulo do kernel assinado para o Secure Boot).
 - **Extensões do GNOME**: várias existem como pacote `gnome-shell-extension-*`. Para descobrir o pacote de uma extensão: `dnf repoquery --whatprovides "/usr/share/gnome-shell/extensions/<UUID>/metadata.json"` (o exportador faz isso sozinho).

@@ -69,7 +69,7 @@ cp .env.example .env && $EDITOR .env   # preencha todas as chaves
 **No Debian**, se o seu usuário ainda não tem sudo, a primeira execução do `--all` roda só o módulo 00: ele pede a **senha de root** uma vez, instala o `sudo` se faltar e põe você nos grupos `sudo`, `adm` e `systemd-journal`. Faça logout e login e rode `./app.sh --all` de novo. O resto é igual ao Fedora, com as diferenças do Debian tratadas pelos módulos: `contrib` e `non-free` habilitados (o equivalente do RPM Fusion, para codecs e o driver de vídeo da Intel), `tealdeer` no lugar do `tldr`, `splash` na linha de boot para a tela do Plymouth aparecer e o MongoDB do repositório do Debian 12, que roda no 13 (a MongoDB ainda não publica o servidor para o 13).
 
 - A senha do `sudo` é pedida **uma única vez**, no início, e mantida ativa durante toda a execução. Ao terminar, as credenciais em cache são invalidadas (`sudo -k`).
-- Os módulos rodam em ordem (00 a 12), sem limpar a tela, então a saída de cada um fica no histórico do terminal.
+- Os módulos rodam em ordem (00 a 13), sem limpar a tela, então a saída de cada um fica no histórico do terminal.
 - Por padrão o `--all` **não mexe no que já está instalado** (política `keep`): só instala o que falta e lista o que tem versão mais nova. Para ser perguntado, use `./app.sh --all --ask`; para atualizar tudo, `./app.sh --all --update` (caso de uso 5).
 - Rode a partir de um terminal **dentro da sessão do GNOME**: os módulos 11 e 12 aplicam as configurações pela sessão gráfica.
 - A máquina já está configurada em parte? Use `./app.sh --all --only-missing`: nada é removido e o que você já configurou fica (caso de uso 4).
@@ -125,6 +125,7 @@ O que muda em cada módulo:
 | 10 | Instala os temas que faltam; mantém as configurações do GRUB, um tema do GRUB que você já usa e a tela de boot atual |
 | 11 | Instala as extensões que faltam; aplica só as configurações do GNOME que você ainda não definiu; acrescenta à sua lista de extensões ativas as do repositório que você não ativou nem desativou |
 | 12 | Mantém o papel de parede e a foto que você já escolheu; só pergunta o que ainda está no padrão |
+| 13 | Instala o que falta; mantém um atalho do Antigravity IDE que já existe e, com o Claude Desktop já instalado, os seus grupos (o `kvm` só entra junto com uma instalação nova) |
 | 00, 02, 03, 05, 09 | Iguais: só instalam ou adicionam o que falta (o 00 só acrescenta grupos) (o 03 só lista as atualizações, pela política `keep`) |
 
 Cada item mantido aparece na saída como "Only-missing mode: keeping ...". Os Flatpaks e pacotes da lista que você desinstalou de propósito voltam a ser instalados (não há como distinguir "nunca instalado" de "removido"); para evitar, rode pelo menu só os módulos que quiser.
@@ -177,10 +178,11 @@ O `.zshrc` versionado é o que o dono do repositório usa no dia a dia. Além do
 - **bat**: `bat arquivo` mostra o arquivo com destaque de sintaxe e números de linha; o `cat` continua o original.
 - **Ambientes**: PATH de `~/.local/bin`, fnm, pnpm e cargo; inicialização do conda, se ele existir em `~/anaconda3`.
 
-### 9. Preparar ambientes de desenvolvimento (módulos 04, 06 e 09)
+### 9. Preparar ambientes de desenvolvimento (módulos 04, 06, 09 e 13)
 - **04**: compiladores, cmake, Python, Java (25 e latest), Maven, MariaDB, SQLite, PostgreSQL e Podman.
 - **06**: VSCode, Google Chrome, MongoDB 8.0 (com mongosh), Docker Engine (com buildx e compose), todos de repositórios oficiais e atualizados pelo `dnf upgrade`, e o Docker Desktop.
 - **09**: dependências do Tauri, Rust (rustup/cargo), eza, uv (Python), Node.js LTS (fnm; uma versão padrão que você já tenha escolhido é mantida), **pnpm** autônomo (instalador oficial, em `~/.local/share/pnpm`, independente da versão do Node) e duas CLIs de IA pelos instaladores oficiais, ambas em `~/.local/bin` e com atualização automática: **Claude Code** (`claude`) e **Antigravity** (`agy`). O que já estiver instalado é pulado. Os instaladores do pnpm e do Antigravity tentam editar o perfil do shell; eles rodam com um `HOME` temporário para não mexer no `~/.zshrc` gerenciado pelo repositório.
+- **13**: os apps Desktop das duas CLIs de IA. O **Claude Desktop** vem do repositório apt oficial da Anthropic (só Debian 12+ e Ubuntu 22.04+; a chave é conferida pela impressão digital publicada e as atualizações chegam pelo apt). No Fedora não há pacote oficial: o módulo avisa e fica o `claude` da linha de comando. Para o Cowork, seu usuário entra no grupo `kvm` (vale no próximo login). O **Antigravity IDE** vem do tarball oficial do Google, instalado em `~/.local/share/antigravity-ide`, com o comando `antigravity-ide` e um atalho no menu de aplicativos. Ele não se atualiza sozinho no Linux: a versão nova é lida na página oficial de download e segue a política de versões (feche o IDE antes de atualizar).
 
 Os bancos de dados são apenas instalados; inicialização e serviços ficam a seu critério (ex: `sudo postgresql-setup --initdb`, `sudo systemctl enable --now mariadb`, `sudo systemctl start mongod`).
 
@@ -263,6 +265,7 @@ Antigravity, Claude Code, Cursor e GitHub Copilot já encontram as regras do pro
 | 10 | `10-themesAndGrub.sh` | Orchis, Tela Circle e Vimix (só no GNOME), GRUB oculto (no Debian, com `splash` na linha de boot), tema GRUB opcional e tela de boot Plymouth deus_ex | sim |
 | 11 | `11-gnomeSettings.sh` | Só no GNOME: extensões, configurações do sistema e das extensões, apps do dock e atalhos | só para extensões empacotadas no Fedora |
 | 12 | `12-wallpaperAndAvatar.sh` | Só no GNOME: papel de parede e foto do usuário, escolhidos num seletor de arquivos ou pelo `.env` | só para instalar o `zenity` (seletor), se faltar |
+| 13 | `13-desktopApps.sh` | Claude Desktop (só Debian e Ubuntu, pelo repositório apt oficial; no Fedora não há pacote oficial e o módulo avisa) e Antigravity IDE (tarball oficial em `~/.local/share/antigravity-ide`, com atalho no menu e comando `antigravity-ide`) | só para o Claude Desktop |
 
 No Fedora, o pacote `malcontent` (controle parental) **não** é removido, porque o GNOME Settings depende dele; sai apenas a interface `malcontent-control`.
 
@@ -271,12 +274,12 @@ No Fedora, o pacote `malcontent` (controle parental) **não** é removido, porqu
 ## O que o projeto altera no sistema
 Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de uso 4, nada é removido e o que já existe fica como está):
 - **Pacotes**: instalações e remoções via dnf/apt e Flatpak de sistema.
-- **Repositórios**: RPM Fusion; `/etc/yum.repos.d/` (`vscode.repo`, `mongodb-org-8.0.repo`, `docker-ce.repo`); habilitação do repositório `google-chrome`; remoto Flathub habilitado e sem filtro; no Debian, `contrib` e `non-free` nas fontes do Debian (backup `.bak` uma vez) e `/etc/apt/sources.list.d/` (`vscode.list`, `mongodb-org-8.0.list`, `google-chrome.list`, `docker.list`).
-- **Serviços e grupos**: `docker` habilitado e iniciado; seu usuário entra nos grupos `docker`, `sudo` ou `wheel`, `adm` e `systemd-journal` (módulo 00). Nenhum grupo é removido.
+- **Repositórios**: RPM Fusion; `/etc/yum.repos.d/` (`vscode.repo`, `mongodb-org-8.0.repo`, `docker-ce.repo`); habilitação do repositório `google-chrome`; remoto Flathub habilitado e sem filtro; no Debian, `contrib` e `non-free` nas fontes do Debian (backup `.bak` uma vez) e `/etc/apt/sources.list.d/` (`vscode.list`, `mongodb-org-8.0.list`, `google-chrome.list`, `docker.list`, `claude-desktop.list` com a chave em `/usr/share/keyrings/`).
+- **Serviços e grupos**: `docker` habilitado e iniciado; seu usuário entra nos grupos `docker`, `kvm` (Claude Desktop), `sudo` ou `wheel`, `adm` e `systemd-journal` (módulo 00). Nenhum grupo é removido.
 - **Usuário**: o shell padrão passa a ser o zsh (`usermod --shell`); a foto escolhida no módulo 12 é entregue ao AccountsService, que guarda a cópia dele em `/var/lib/AccountsService/icons/`.
 - **Boot**: `/etc/default/grub` (com backup) e `/boot/grub2/grub.cfg`; tema GRUB em `/boot/grub2/themes` (com `-b`); tema Plymouth em `/usr/share/plymouth/themes/deus_ex`, com o initramfs reconstruído; no Debian, `splash` em `GRUB_CMDLINE_LINUX_DEFAULT` e o tema em `/etc/plymouth/plymouthd.conf`.
 - **Configurações do GNOME (dconf do seu usuário)**: as chaves de `style/gnome/dconf/*.ini`. Só as chaves listadas são alteradas; o resto fica como está. O módulo 12 altera também o papel de parede (`org.gnome.desktop.background` e `org.gnome.desktop.screensaver`).
-- **No `$HOME`**: `~/Dev`, `~/.oh-my-zsh`, `~/.zshrc` (com backup), `~/.local/share/fonts/NerdFonts`, temas em `~/.themes` e `~/.local/share/icons`, extensões em `~/.local/share/gnome-shell/extensions`, `~/.config/burn-my-windows`, cópias dos papéis de parede em `~/.local/share/backgrounds`, `~/.cargo`, `~/.rustup`, `~/.local/share/fnm`, `~/.local/share/pnpm`, Claude Code em `~/.local/bin/claude` e `~/.local/share/claude`, Antigravity em `~/.local/bin/agy`, logs em `~/.local/state/dotfiles/logs`, versões registradas em `~/.local/state/dotfiles/versions`, preferência de tema da interface gráfica em `~/.config/dotfiles/gui.ini` e o atalho dela em `~/.local/share/applications/local.dotfiles.Setup.desktop` (só se você pedir), `~/.gitconfig` e `~/.ssh`.
+- **No `$HOME`**: `~/Dev`, `~/.oh-my-zsh`, `~/.zshrc` (com backup), `~/.local/share/fonts/NerdFonts`, temas em `~/.themes` e `~/.local/share/icons`, extensões em `~/.local/share/gnome-shell/extensions`, `~/.config/burn-my-windows`, cópias dos papéis de parede em `~/.local/share/backgrounds`, `~/.cargo`, `~/.rustup`, `~/.local/share/fnm`, `~/.local/share/pnpm`, Claude Code em `~/.local/bin/claude` e `~/.local/share/claude`, Antigravity em `~/.local/bin/agy`, Antigravity IDE em `~/.local/share/antigravity-ide` (comando `~/.local/bin/antigravity-ide` e atalho `~/.local/share/applications/antigravity-ide.desktop`), logs em `~/.local/state/dotfiles/logs`, versões registradas em `~/.local/state/dotfiles/versions`, preferência de tema da interface gráfica em `~/.config/dotfiles/gui.ini` e o atalho dela em `~/.local/share/applications/local.dotfiles.Setup.desktop` (só se você pedir), `~/.gitconfig` e `~/.ssh`.
 
 ## Solução de problemas
 - **"No graphical display found"** ou **"The graphical interface needs GTK 4, libadwaita and VTE"** (`--gui`): rode de dentro da sessão gráfica e instale o que a mensagem indicar; o menu do terminal (`./app.sh`) faz o mesmo.
@@ -286,6 +289,7 @@ Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de us
 - **"Do not run this as root"**: rode como seu usuário, sem `sudo` na frente.
 - **"sudo: command not found"** ou **"is not in the sudoers file"** (Debian instalado com senha de root): rode `./app.sh`, escolha o módulo `00` e digite a senha de **root** quando o `su` pedir; depois faça logout e login. O `./app.sh --all` faz isso sozinho.
 - **"Debian 13 (trixie) or newer is required"**: o projeto suporta o Debian 13 em diante (a interface gráfica precisa da libadwaita 1.7). Atualize o sistema antes.
+- **Claude Desktop pede login toda vez**: ele guarda a sessão no chaveiro do GNOME (`gnome-keyring`); confira se o chaveiro está instalado e desbloqueado.
 - **"Fedora 41+ (dnf5) is required"** ou **"Unsupported distribution"**: a distribuição não é suportada (ver o topo deste README).
 - **`docker` exige sudo**: faça logout e login para o grupo `docker` valer.
 - **O terminal continua no bash**: o novo shell vale a partir do próximo login.

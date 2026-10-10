@@ -45,7 +45,11 @@ A instalação de software obedece rigorosamente à seguinte ordem de preferênc
 
 * Exceção (Claude Code, decisão do usuário): instalado pelo método que o site oficial recomenda, o instalador nativo (`curl -fsSL https://claude.ai/install.sh | bash`, no módulo 09). Ele fica em `~/.local/bin`, se atualiza sozinho em segundo plano e não deve ser trocado pelo repositório dnf/apt nem pelo npm.
 
-* Exceção (Antigravity CLI): instalador oficial (`https://antigravity.google/cli/install.sh`), binário `agy` em `~/.local/bin`, com atualização automática. O aplicativo Desktop ainda não é automatizado (ver backlog).
+* Exceção (Antigravity CLI): instalador oficial (`https://antigravity.google/cli/install.sh`), binário `agy` em `~/.local/bin`, com atualização automática.
+
+* Exceção (Antigravity IDE, decisão do usuário): o Google só publica o app para Linux como tarball (os repositórios apt/rpm pararam na 1.x). O módulo 13 o instala em `~/.local/share/antigravity-ide`, com o comando `antigravity-ide` e um atalho no menu. O tarball não se atualiza sozinho: a versão nova é lida na página oficial de download (`antigravity.google/download?os=linux`) e segue a política de versões. O "Antigravity 2.0" da mesma página não é instalado, por escolha do usuário.
+
+* Claude Desktop: repositório apt oficial da Anthropic (nível 1), só para Debian 12+ e Ubuntu 22.04+ (módulo 13). No Fedora não há pacote oficial: o módulo avisa e não usa conversores da comunidade (decisão do usuário).
 
 * Extensões do GNOME: usar o pacote do Fedora (`gnome-shell-extension-*`) quando existir, atualizado pelo dnf; as demais vêm do extensions.gnome.org, na versão compatível com o GNOME Shell instalado. Nunca de clones de repositório.
 

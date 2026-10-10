@@ -19,6 +19,7 @@ O Debian 13 (trixie) ou mais novo, com GNOME, é suportado e validado num contai
 - Como no dnf5, um nome inexistente derruba a transação inteira do apt ("Unable to locate package"). Valide todo nome novo com `apt-cache policy <pacote>` e a lista completa com `apt-get install -s` num container `debian:13`.
 - **MongoDB**: o servidor (`mongodb-org`) não é publicado para o trixie, só o `mongosh` e as ferramentas. O módulo 06 lê o índice `Packages` da versão do sistema e, sem o servidor, usa o repositório do bookworm (testado: o `mongod` 8.0 instala e roda no Debian 13), como o Fedora usa o do RHEL 9. Leia o índice inteiro antes de procurar nele: com `pipefail`, um `curl | grep -q` pode falhar quando o `grep` para de ler no meio do download.
 - **Docker CE** tem a suite `trixie`. O Docker Desktop (`.deb` de 500 MB) não foi validado no container.
+- **Claude Desktop**: repositório apt oficial da Anthropic (Debian 12+ e Ubuntu 22.04+), chave em `/usr/share/keyrings/claude-desktop-archive-keyring.asc`, recusada se a impressão digital não for `31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE`. O próprio pacote também instala a chave e a lista: nunca as sobrescreva. O Cowork precisa do grupo `kvm`.
 
 ## 4. Boot
 - O GRUB é atualizado com `update-grub`.
