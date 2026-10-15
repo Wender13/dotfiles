@@ -1,7 +1,7 @@
 #!/bin/bash
 # Captures the current GNOME configuration into the repository (style/gnome/):
 #   dconf/*.ini               settings applied by scripts/11-gnomeSettings.sh
-#   extensions.txt            enabled extensions (UUID and Fedora package, when one exists)
+#   extensions.txt            extensions to install (UUID and Fedora package, when one exists)
 #   burn-my-windows/profiles  effect profiles referenced by the extension settings
 #
 # What is kept out of the repository:
@@ -9,6 +9,8 @@
 #   - machine state keys (DROP_KEYS: timestamps, window sizes, wallpaper paths)
 #   - any key whose name or value looks like a secret or an e-mail (SECRET_KEY_RE,
 #     SECRET_VALUE_RE, EMAIL_RE); dropped keys are listed at the end of the run
+#   - extensions that are no longer installed: GNOME keeps them in enabled-extensions and
+#     keeps their settings; both are left out and listed during the run
 #   - the home path, replaced by the @HOME@ placeholder
 # The run aborts if a secret-looking value or the home path still reaches the output.
 # Heuristics are not a guarantee: always review 'git diff' before committing.
@@ -26,12 +28,79 @@ DROPPED="$(mktemp)"
 trap 'rm -f "$DUMP" "$DROPPED"' EXIT
 dconf dump / > "$DUMP"
 
+# ─── Extensions that are no longer installed ──────────────────────────────────
+# GNOME keeps an uninstalled extension in enabled-extensions and keeps its settings. Both are
+# left out, so the repository only carries extensions that are installed now. An extension's
+# settings are found by the schema paths it ships (or by its settings-schema id).
+python3 - "$DUMP" <<'EOF'
+import ast, glob, json, os, re, subprocess, sys
+
+dump_path = sys.argv[1]
+installed = subprocess.run(["gnome-extensions", "list"], capture_output=True, text=True, check=True).stdout.split()
+roots = [os.path.expanduser("~/.local/share/gnome-shell/extensions"), "/usr/share/gnome-shell/extensions"]
+
+def schema_paths(xml_file):
+    with open(xml_file) as f:
+        return [p.strip("/") for p in re.findall(r'path="/(org/gnome/shell/extensions/[^"]+)"', f.read())]
+
+prefixes = set()
+for uuid in installed:
+    folder = next((os.path.join(r, uuid) for r in roots if os.path.isdir(os.path.join(r, uuid))), None)
+    if folder is None:
+        continue
+    for xml_file in glob.glob(os.path.join(folder, "schemas", "*.gschema.xml")):
+        prefixes.update(schema_paths(xml_file))
+    try:
+        with open(os.path.join(folder, "metadata.json")) as f:
+            schema = json.load(f).get("settings-schema")
+    except (OSError, ValueError):
+        schema = None
+    if schema:
+        # Packaged extensions keep their schemas in the system folder
+        system_xml = f"/usr/share/glib-2.0/schemas/{schema}.gschema.xml"
+        if os.path.exists(system_xml):
+            prefixes.update(schema_paths(system_xml))
+        prefixes.add(schema.replace(".", "/"))
+
+def parse_list(value):
+    value = value.strip()
+    if value.startswith("@as"):
+        value = value[3:].strip()
+    return ast.literal_eval(value) if value else []
+
+out, section, skipping, left_out = [], "", False, []
+with open(dump_path) as f:
+    lines = f.read().split("\n")
+for line in lines:
+    match = re.fullmatch(r"\[(.*)\]", line)
+    if match:
+        section = match.group(1)
+        skipping = section.startswith("org/gnome/shell/extensions/") and not any(
+            section == p or section.startswith(p + "/") for p in prefixes)
+        if skipping:
+            left_out.append(f"settings in {section}")
+    if skipping:
+        continue
+    if section == "org/gnome/shell" and line.startswith(("enabled-extensions=", "disabled-extensions=")):
+        key, value = line.split("=", 1)
+        uuids = parse_list(value)
+        kept = [u for u in uuids if u in installed]
+        left_out += [f"{u} in {key}" for u in uuids if u not in installed]
+        line = f"{key}={kept!r}" if kept else f"{key}=@as []"
+    out.append(line)
+with open(dump_path, "w") as f:
+    f.write("\n".join(out))
+for item in left_out:
+    print(f"Left out (extension not installed): {item}")
+EOF
+
 # Keys that hold machine state or personal paths, matched against "section/key"
 DROP_KEYS='.*/picture-uri(-dark)?'
 DROP_KEYS+='|org/gnome/shell/(app-picker-layout|last-selected-power-profile|welcome-dialog-last-shown-version|command-history|had-bluetooth-devices-setup)'
 DROP_KEYS+='|org/gnome/shell/extensions/blur-my-shell/rounded-blur-found'
 DROP_KEYS+='|org/gnome/shell/extensions/burn-my-windows/(last-extension-version|prefs-open-count|preview-effect)'
 DROP_KEYS+='|org/gnome/shell/extensions/caffeine/(user-enabled|indicator-position-max|cli-toggle|toggle-state)'
+DROP_KEYS+='|org/gnome/shell/extensions/tilingshell/last-version-name-installed'
 DROP_KEYS+='|org/gnome/Ptyxis/window-size'
 DROP_KEYS+='|org/gnome/desktop/peripherals/keyboard/numlock-state'
 DROP_KEYS+='|org/gnome/nautilus/preferences/migrated-gtk-settings'
