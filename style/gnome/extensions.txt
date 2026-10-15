@@ -4,12 +4,17 @@
 # "disabled" ones are installed but stay off (org/gnome/shell in dconf/shell.ini decides
 # what is enabled); their settings are exported as well.
 user-theme@gnome-shell-extensions.gcampax.github.com    gnome-shell-extension-user-theme
-clipboard-history@alexsaveau.dev
 vertical-app-grid@lublst.github.io
 just-perfection-desktop@just-perfection                 gnome-shell-extension-just-perfection
 burn-my-windows@schneegans.github.com
 compiz-alike-magic-lamp-effect@hermes83.github.com
 lockkeys@vaina.lt
 caffeine@patapon.info                                   gnome-shell-extension-caffeine
-advanced-alt-tab@G-dH.github.com
+CoverflowAltTab@palatis.blogspot.com
+drive-menu@gnome-shell-extensions.gcampax.github.com    gnome-shell-extension-drive-menu
+tilingshell@ferrarodomenico.com
+wack-lockscreen-clock@rinzler69-wastaken.github.com
+copyous@boerdereinar.dev
+wiggly@mojarch
+usb-notify@jiesou.github.io
 disabled blur-my-shell@aunetx                           gnome-shell-extension-blur-my-shell
