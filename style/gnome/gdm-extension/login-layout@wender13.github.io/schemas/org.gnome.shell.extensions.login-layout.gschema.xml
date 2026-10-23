@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Set on the login screen through GDM's dconf database by scripts/16-loginLayout.sh (.env) -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.login-layout" path="/org/gnome/shell/extensions/login-layout/">
+    <key name="layout" type="s">
+      <choices>
+        <choice value="panel-right"/>
+        <choice value="panel-left"/>
+        <choice value="card-right"/>
+        <choice value="card-left"/>
+        <choice value="band-bottom"/>
+        <choice value="band-top"/>
+        <choice value="clock-above"/>
+        <choice value="clock-below"/>
+      </choices>
+      <default>'panel-right'</default>
+      <summary>Where the user list and the time and date go</summary>
+    </key>
+    <key name="panel-style" type="s">
+      <choices>
+        <choice value="glass"/>
+        <choice value="solid"/>
+      </choices>
+      <default>'glass'</default>
+      <summary>glass blurs what is behind the panel; solid is an opaque color</summary>
+    </key>
+    <key name="panel-blur" type="i">
+      <range min="0" max="100"/>
+      <default>40</default>
+      <summary>Blur radius of the glass panel, in pixels</summary>
+    </key>
+    <key name="panel-darkness" type="i">
+      <range min="0" max="100"/>
+      <default>45</default>
+      <summary>How dark the panel is, in percent</summary>
+    </key>
+  </schema>
+</schemalist>

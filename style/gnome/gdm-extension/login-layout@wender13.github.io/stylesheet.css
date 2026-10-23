@@ -1,21 +1,33 @@
-/* The solid box with the time and date on the right half of the login screen */
-.dotfiles-login-clock {
-  background-color: #1e1e22;
+/* The time and date on the login screen. The panel, band and card backgrounds (glass or
+   solid, and how dark) are set by extension.js from the extension settings. */
+.dotfiles-login-clock-content {
+  spacing: 8px;
+}
+
+.dotfiles-login-clock-card {
   border-radius: 28px;
   padding: 40px 64px;
-  spacing: 8px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
 }
 
 .dotfiles-login-clock-time {
   color: #ffffff;
-  font-size: 64pt;
+  font-size: 72pt;
   font-weight: 300;
-  /* Same-width digits, so the box does not jitter as the seconds change */
+  /* Same-width digits, so the time does not jitter as the seconds change */
   font-feature-settings: "tnum";
+}
+
+.dotfiles-login-clock-card .dotfiles-login-clock-time {
+  font-size: 64pt;
 }
 
 .dotfiles-login-clock-date {
   color: rgba(255, 255, 255, 0.75);
-  font-size: 15pt;
+  font-size: 16pt;
+}
+
+/* Without a background, a soft shadow keeps the text readable over a wallpaper */
+.dotfiles-login-clock-plain .dotfiles-login-clock-time,
+.dotfiles-login-clock-plain .dotfiles-login-clock-date {
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }

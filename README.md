@@ -58,6 +58,10 @@ O `.env` fica na raiz, é ignorado pelo git e guarda os dados pessoais. Nenhum d
 | `AVATAR_IMAGE` | 12 | Imagem da foto do usuário (caminho absoluto ou `~/...`) | Abre um seletor de arquivos (Cancelar mantém a atual) |
 | `LOGIN_BLUR` | 15 (beta) | Raio do desfoque do fundo da tela de login, em pixels (0 a 100) | `30` |
 | `LOGIN_DARKNESS` | 15 (beta) | Escurecimento do fundo da tela de login, em % (0 a 90) | `35` |
+| `LOGIN_LAYOUT` | 16 (beta) | Layout da tela inicial do login: `panel-right`, `panel-left`, `card-right`, `card-left`, `band-bottom`, `band-top`, `clock-above` ou `clock-below` (caso de uso 16) | Menu para escolher; no `--all`, mantém o atual (primeira vez: `panel-right`) |
+| `LOGIN_PANEL_STYLE` | 16 (beta) | Painel, cartão ou faixa: `glass` (vidro, desfoca o que está atrás) ou `solid` | Menu; no `--all`, o atual (primeira vez: `glass`) |
+| `LOGIN_PANEL_BLUR` | 16 (beta) | Desfoque do vidro, em pixels (0 a 100) | Menu; no `--all`, o atual (primeira vez: `40`) |
+| `LOGIN_PANEL_DARKNESS` | 16 (beta) | Quanto o painel escurece, em % (0 a 100) | Menu; no `--all`, o atual (primeira vez: `45`) |
 
 No Fedora, inclua `-b` em `GRUB_THEME_ARGS`: o `/boot` é uma partição separada, e o tema precisa ficar em `/boot/grub2/themes`.
 
@@ -120,7 +124,7 @@ bash scripts/05-flatpakPrograms.sh
 | Claude Desktop e Antigravity IDE | `bash scripts/13-desktopApps.sh` | - |
 | Tela de login sem risco (escura, seus ícones, sem logo) | `bash scripts/14-loginScreen.sh` | copia os temas de ícones e cursores para `/usr/share/icons` (rode o 10 antes) |
 | **Beta, com risco**: fundo da tela de login com o papel de parede desfocado | `bash scripts/15-loginBackground.sh` (ou `./app.sh --beta` e o 15) | mostra os riscos e pede `sim` antes; desfaça com `bash scripts/15-loginBackground.sh --restore` (caso de uso 16) |
-| **Beta**: tela inicial do login em duas colunas (usuário à esquerda, hora e data à direita) | `bash scripts/16-loginLayout.sh` (ou `./app.sh --beta` e o 16) | instala uma extensão só da tela de login; desfaça com `bash scripts/16-loginLayout.sh --restore` (caso de uso 16) |
+| **Beta**: layout da tela inicial do login (8 opções: painel, cartão, faixa ou só o relógio, de vidro ou sólido) | `bash scripts/16-loginLayout.sh` (menu para escolher), `bash scripts/16-loginLayout.sh --layout card-left --style glass` ou `./app.sh --beta` e o 16 | `--help` lista as opções; desfaça com `bash scripts/16-loginLayout.sh --restore` (caso de uso 16) |
 
 Os módulos experimentais (beta) ficam fora do menu, do `--all` e da interface gráfica, a não ser com `--beta`: `./app.sh --beta` (menu), `./app.sh --all --beta` ou `./app.sh --gui --beta`. Rodados direto pelo `bash`, eles mesmos mostram o aviso e pedem confirmação.
 
@@ -286,7 +290,7 @@ As regras são heurísticas: revise sempre o `git diff` antes de commitar.
 ```bash
 bash scripts/14-loginScreen.sh        # sem risco: escura, seus ícones, sem logo (pede o sudo)
 bash scripts/15-loginBackground.sh    # beta: fundo com o papel de parede desfocado (mostra os riscos e pede 'sim')
-bash scripts/16-loginLayout.sh        # beta: usuário à esquerda, hora e data à direita (mostra os riscos e pede 'sim')
+bash scripts/16-loginLayout.sh        # beta: layout com hora e data (mostra os riscos, pede 'sim' e um menu para escolher)
 ```
 Ou pelo menu: `./app.sh --beta` e digite `14`, `15` e `16`, um de cada vez. Os três são independentes: rode só os que quiser. Faça logout para ver o resultado. Para desfazer um beta: `bash scripts/15-loginBackground.sh --restore` ou `bash scripts/16-loginLayout.sh --restore` (caso de uso 16).
 
@@ -297,6 +301,7 @@ Ou pelo menu: `./app.sh --beta` e digite `14`, `15` e `16`, um de cada vez. Os t
 ./app.sh --gui --beta        # interface gráfica com os beta
 bash scripts/15-loginBackground.sh            # um beta isolado (pede confirmação)
 bash scripts/15-loginBackground.sh --restore  # desfaz o 15
+bash scripts/16-loginLayout.sh --help          # layouts e opções do 16
 bash scripts/16-loginLayout.sh --restore       # desfaz o 16
 ```
 O que pode deixar o sistema num estado ruim fica num módulo **experimental**, fora do fluxo normal. Antes de mudar qualquer coisa, ele mostra a **função**, **o que faz** (arquivos e comandos), os **riscos** e **como desfazer**, e só segue se você digitar `sim`. No `--all --beta`, esse aviso aparece no início para todos os módulos beta, com uma única confirmação, para o resto da execução não parar no meio.
@@ -309,11 +314,33 @@ O que pode deixar o sistema num estado ruim fica num módulo **experimental**, f
 - O papel de parede vem do GNOME (o do estilo escuro); se não for uma imagem, do `WALLPAPER_IMAGE` do `.env`. Trocou o papel de parede? Rode o 15 de novo.
 - **Ajustar o desfoque e a escuridão**: no `.env`, `LOGIN_BLUR` (raio do desfoque gaussiano em pixels, de 0, nítido, a 100, quase um degradê; padrão 30) e `LOGIN_DARKNESS` (escurecimento em %, de 0 a 90; padrão 35). Depois, rode o 15 de novo: ele refaz a imagem a partir do original guardado. Exemplo: `LOGIN_BLUR=15` e `LOGIN_DARKNESS=20` deixam o papel de parede mais reconhecível.
 
-**Módulo 16 (beta): tela inicial do login em duas colunas.**
-- **Função**: na lista de usuários (a primeira tela, antes de escolher alguém), a caixa com foto e nome vai para a metade esquerda e uma caixa sólida com a hora (com segundos, se o relógio do 14 estiver assim) e a data por extenso ocupa a metade direita; o relógio do topo some. Ao escolher o usuário, a etapa da senha volta a ser a padrão do GNOME, com o relógio do topo.
-- **O que faz**: o CSS do GNOME não cria elementos e o layout da tela de login vem do JavaScript do GNOME Shell. Por isso o módulo instala uma extensão própria (`style/gnome/gdm-extension/`) que roda **só na tela de login** (`"session-modes": ["gdm"]`), em `/usr/share/gnome-shell/extensions`, e a ativa no banco do GDM. Nenhum arquivo de pacote é alterado.
-- **Riscos**: a extensão usa objetos internos do diálogo de login, que podem mudar numa versão nova do GNOME; se sumirem, ela não faz nada, e um erro nela faz o GNOME desligá-la sem impedir o login. Ela declara o GNOME 48 a 50, e o módulo recusa outras versões. Em monitor estreito (retrato) as colunas podem se sobrepor; com vários monitores, vale o principal.
-- **Validação**: o GNOME Shell 50 rodou de verdade em modo de tela de login num container, com os módulos 14 e 16 aplicados pelo banco do GDM, e as capturas mostraram a lista de usuários e a etapa da senha como descrito; no GNOME 48 (Debian 13) a parte visual foi conferida só pelo código-fonte.
+**Módulo 16 (beta): layout da tela inicial do login.**
+- **Função**: na lista de usuários (a primeira tela, antes de escolher alguém), a hora (com segundos, se o relógio do 14 estiver assim) e a data por extenso ganham destaque num dos oito layouts abaixo, a caixa com foto e nome sai do caminho delas e o relógio do topo some. Ao escolher o usuário, a etapa da senha volta a ser a padrão do GNOME, com o relógio do topo.
+
+  | Layout | Como fica |
+  | --- | --- |
+  | `panel-right` (padrão na primeira vez) | Painel cobrindo a metade direita, de cima a baixo; usuário no centro da metade esquerda |
+  | `panel-left` | O mesmo, espelhado: painel à esquerda, usuário à direita |
+  | `card-right` | Cartão arredondado com hora e data no centro da metade direita; usuário na esquerda |
+  | `card-left` | O mesmo, espelhado |
+  | `band-bottom` | Faixa na largura toda, no terço de baixo da tela; usuário no centro do resto, acima |
+  | `band-top` | Faixa no terço de cima; usuário abaixo |
+  | `clock-above` | Sem painel: só a hora e a data, grandes, acima do usuário |
+  | `clock-below` | Sem painel: hora e data abaixo do usuário |
+
+- **Estilo do painel, do cartão e da faixa**: `glass` (vidro, o padrão) desfoca o que está atrás e põe um tom escuro por cima; `solid` é uma cor opaca, o fundo da tela de login escurecido. O vidro precisa de algo atrás para desfocar: com o fundo do módulo 15, ele vira um vidro fosco sobre o papel de parede; sem o 15, atrás só há a cor do GNOME e ele parece sólido. Uma boa combinação é `LOGIN_BLUR=0` no 15 (papel de parede nítido) com o vidro do 16 (desfocado só atrás do painel).
+- **Desfoque e escuridão**: o raio do desfoque do vidro, de 0 a 100 pixels (padrão 40), e quanto o painel escurece, de 0 a 100% (padrão 45; no sólido, 100 é preto).
+- **Como escolher**: cada escolha vem, nesta ordem, das opções do módulo, do `.env`, de um menu numerado ou do valor já instalado.
+  ```bash
+  bash scripts/16-loginLayout.sh --help                                  # lista os layouts e as opções
+  bash scripts/16-loginLayout.sh                                         # menu: número ou nome; Enter mantém o atual
+  bash scripts/16-loginLayout.sh --layout band-bottom                    # só o layout; o resto pelo menu
+  bash scripts/16-loginLayout.sh --layout card-left --style glass --blur 30 --darkness 50   # tudo, sem menu
+  ```
+  No `.env`, as chaves são `LOGIN_LAYOUT`, `LOGIN_PANEL_STYLE`, `LOGIN_PANEL_BLUR` e `LOGIN_PANEL_DARKNESS` (as que estiverem preenchidas não são perguntadas). No `./app.sh --all --beta`, nada é perguntado, para a execução seguir sozinha: vale o `.env` ou o que já estava instalado. Valores inválidos são recusados antes de qualquer pergunta. Os layouts só de relógio não perguntam o estilo. Para trocar de layout depois, rode o 16 de novo.
+- **O que faz**: o CSS do GNOME não cria elementos e o layout da tela de login vem do JavaScript do GNOME Shell. Por isso o módulo instala uma extensão própria (`style/gnome/gdm-extension/`, com um schema de configurações compilado na instalação) que roda **só na tela de login** (`"session-modes": ["gdm"]`), em `/usr/share/gnome-shell/extensions`, e grava a escolha e a ativação no banco do GDM. O vidro usa o mesmo efeito de desfoque do GNOME Shell (`Shell.BlurEffect`). Nenhum arquivo de pacote é alterado.
+- **Riscos**: a extensão usa objetos internos do diálogo de login, que podem mudar numa versão nova do GNOME; se sumirem, ela não faz nada, e um erro nela faz o GNOME desligá-la sem impedir o login. Ela declara o GNOME 48 a 50, e o módulo recusa outras versões. Em monitor estreito (retrato) as partes podem se sobrepor; com vários monitores, vale o principal.
+- **Validação**: o GNOME Shell 50 rodou de verdade em modo de tela de login num container, com os módulos 14, 15 e 16 aplicados pelo banco do GDM, e as capturas mostraram os oito layouts, o vidro e o sólido, e a etapa da senha como descrito; o menu foi testado num pseudo-terminal. No GNOME 48 (Debian 13) a parte visual foi conferida só pelo código-fonte.
 - **Como desfazer**: `bash scripts/16-loginLayout.sh --restore`. Se a tela de login não abrir: **Ctrl+Alt+F3**, entre no terminal, rode esse comando e depois `sudo systemctl restart gdm`.
 
 ### 17. Adicionar uma nova etapa de automação
@@ -342,7 +369,7 @@ Antigravity, Claude Code, Cursor e GitHub Copilot já encontram as regras do pro
 | 13 | `13-desktopApps.sh` | Claude Desktop (só Debian e Ubuntu, pelo repositório apt oficial; no Fedora não há pacote oficial e o módulo avisa) e Antigravity IDE (tarball oficial em `~/.local/share/antigravity-ide`, com atalho no menu e comando `antigravity-ide`) | só para o Claude Desktop |
 | 14 | `14-loginScreen.sh` | Só no GNOME com GDM: tela de login escura, com seus ícones e cursores, relógio, touchpad e teclado do desktop e sem logo | sim |
 | 15 | `15-loginBackground.sh` | **Beta** (só com `--beta`; mostra os riscos e pede confirmação): fundo da tela de login com o papel de parede desfocado, recompilando o recurso de tema do GNOME Shell; `--restore` desfaz (caso de uso 16) | sim |
-| 16 | `16-loginLayout.sh` | **Beta** (só com `--beta`; mostra os riscos e pede confirmação): tela inicial do login em duas colunas, com o usuário à esquerda e uma caixa sólida com hora e data à direita, por uma extensão que só roda no GDM; `--restore` desfaz (caso de uso 16) | sim |
+| 16 | `16-loginLayout.sh` | **Beta** (só com `--beta`; mostra os riscos e pede confirmação): layout da tela inicial do login, com hora e data num de oito layouts (painel, cartão, faixa ou só o relógio, de cada lado) e painel de vidro ou sólido, escolhido por opções, `.env` ou menu, por uma extensão que só roda no GDM; `--help` lista as opções e `--restore` desfaz (caso de uso 16) | sim |
 
 No Fedora, o pacote `malcontent` (controle parental) **não** é removido, porque o GNOME Settings depende dele; sai apenas a interface `malcontent-control`.
 
