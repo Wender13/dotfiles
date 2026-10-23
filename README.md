@@ -50,7 +50,7 @@ O `.env` fica na raiz, é ignorado pelo git e guarda os dados pessoais. Nenhum d
 | --- | --- | --- | --- |
 | `GIT_USERNAME` | 07 | `git config --global user.name` | Pergunta no terminal |
 | `GIT_EMAIL` | 07 | `git config --global user.email` e comentário da chave SSH | Pergunta no terminal |
-| `GITHUB_USER` | 01 | Dono dos forks pessoais clonados (hidetopbar, lockkeys, grub2-theme) | Pergunta no terminal (Enter pula) |
+| `GITHUB_USER` | 01 | Dono dos repositórios pessoais clonados (hidetopbar, lockkeys, hide-cursor-animated, grub2-theme) | Pergunta no terminal (Enter pula) |
 | `GRUB_THEME_ARGS` | 10 | Argumentos do instalador do tema GRUB (ex: `-b -t tela -s 1080p`) | Não instala tema no GRUB |
 | `CONFIG_MODE` | todos | O que fazer com o que o sistema já tem: `full` (aplica a configuração do repositório) ou `missing` (só instala e configura o que falta; ver caso de uso 4) | `full` |
 | `UPDATE_POLICY` | todos | O que fazer com o que já está instalado e tem versão nova: `ask`, `update` ou `keep` (ver caso de uso 5) | Menu: `ask`; `--all`: `keep` |
@@ -188,7 +188,7 @@ Os bancos de dados são apenas instalados; inicialização e serviços ficam a s
 
 ### 10. Personalizar o visual e o boot (módulos 01 e 10)
 1. Defina `GITHUB_USER` e `GRUB_THEME_ARGS` no `.env`.
-2. Rode o **01**: ele clona seus forks (extensões, só no GNOME, e tema GRUB) para `~/Dev/linux_projects/gnome/`.
+2. Rode o **01**: ele clona seus repositórios (forks de extensões e a sua extensão Hide Cursor Drops, só no GNOME, e tema GRUB) para `~/Dev/linux_projects/gnome/`.
 3. Rode o **10**: ele instala o tema GTK Orchis, os ícones Tela Circle e os cursores Vimix (só no GNOME, pulando os já instalados), oculta o menu do GRUB (`GRUB_TIMEOUT=0`, `GRUB_TIMEOUT_STYLE=hidden`), instala o tema do GRUB e regenera a configuração. Também instala a tela de boot **Plymouth deus_ex** (do pack_2 de [adi1090x/plymouth-themes](https://github.com/adi1090x/plymouth-themes), baixando só esse tema) e reconstrói o initramfs; se ela já for a ativa, nada é feito.
 4. Rode o **11** para ativar os temas e o restante das configurações (caso de uso 12).
 
@@ -253,7 +253,7 @@ Antigravity, Claude Code, Cursor e GitHub Copilot já encontram as regras do pro
 | Nº | Script | O que faz | sudo |
 | --- | --- | --- | --- |
 | 00 | `00-sudoAccess.sh` | Dá ao seu usuário o sudo e a leitura de logs: instala o `sudo` se faltar e adiciona os grupos `sudo` (`wheel` no Fedora), `adm` e `systemd-journal`. Sem sudo ainda, pede a senha de root uma vez (`su`). Nunca remove grupos | só via `su`, quando falta |
-| 01 | `01-setupEnv.sh` | Cria `~/Dev/{linux_projects,personal_projects,college_projects}` e clona os forks pessoais das extensões do GNOME (só no GNOME) e do tema GRUB | não |
+| 01 | `01-setupEnv.sh` | Cria `~/Dev/{linux_projects,personal_projects,college_projects}` e clona os repositórios pessoais: forks e extensão própria do GNOME (só no GNOME) e tema GRUB | não |
 | 02 | `02-permissions.sh` | Dá permissão de execução a `app.sh` e aos scripts de `scripts/`, `style/` e `tools/` | não |
 | 03 | `03-update.sh` | Atualiza pacotes do sistema e Flatpaks conforme a política de versões, remove dependências órfãs e avisa sobre firmware e reinício | sim |
 | 04 | `04-commonPrograms.sh` | Remove LibreOffice e, no GNOME, o bloatware do GNOME; habilita o RPM Fusion (no Debian, `contrib` e `non-free`); instala codecs (ffmpeg completo e grupo multimedia) e o driver de aceleração de vídeo da GPU detectada (AMD ou Intel; NVIDIA só recebe um aviso); instala ferramentas de CLI (zsh, git, fzf, htop, bat, eza, zoxide, tldr (`tealdeer` no Debian), curl, wget, script), apps (VLC, Tilix, GIMP, OBS Studio e, no GNOME, GNOME Tweaks), ferramentas de dev, bancos de dados, Podman, Flatpak, Python, Java, Maven e powerline-fonts; garante o Flathub. No apt, só remove o bloatware que não arrastaria outros pacotes | sim |

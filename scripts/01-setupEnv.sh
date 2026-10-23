@@ -24,9 +24,11 @@ print_header "Cloning personal repositories"
 
 # repository name -> clone directory
 declare -A forks=(["grub2-theme"]="$HOME/Dev/linux_projects/gnome/grub2/grub2-theme")
-if gnome_only "the GNOME extension forks (hidetopbar, lockkeys)"; then
+if gnome_only "the GNOME extension repositories (hidetopbar, lockkeys, hide-cursor-animated)"; then
     forks["hidetopbar"]="$HOME/Dev/linux_projects/gnome/extensions/hidetopbar"
     forks["gnome-shell-extension-lockkeys"]="$HOME/Dev/linux_projects/gnome/extensions/gnome-shell-extension-lockkeys"
+    # Your own extension, not on extensions.gnome.org: 11-gnomeSettings.sh installs it from here
+    forks["hide-cursor-animated"]="$HOME/Dev/linux_projects/gnome/extensions/hide_cursor"
 fi
 
 missing=()

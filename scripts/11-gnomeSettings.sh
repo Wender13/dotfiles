@@ -58,9 +58,20 @@ ego_version() {
         | python3 -c 'import json, sys; print(json.load(sys.stdin)["version"])' 2> /dev/null || true
 }
 
+# Version in an extension's metadata.json, or 0
+metadata_version() {
+    python3 -c 'import json, sys; print(json.load(open(sys.argv[1])).get("version", 0))' "$1" 2> /dev/null || echo 0
+}
+
+# Your own extensions, not on extensions.gnome.org: built with the project's 'make install'
+# from the clone that 01-setupEnv.sh makes (GITHUB_USER), never downloaded here.
+declare -A own_extensions=(["hide-cursor-drops@wender13.github.io"]="$HOME/Dev/linux_projects/gnome/extensions/hide_cursor")
+
 dnf_packages=()
 ego_extensions=()
 ego_installed=()
+own_missing=()
+own_installed=()
 # extensions.txt: "[disabled] UUID [Fedora package]" per line; '#' starts a comment.
 # Disabled ones are installed the same way: the enabled/disabled lists loaded from
 # dconf/shell.ini below keep them off.
@@ -72,7 +83,13 @@ while read -r uuid package extra _; do
     if [ -z "$uuid" ] || [[ "$uuid" == \#* ]]; then
         continue
     fi
-    if [ -n "$package" ] && is_dnf && [ ! -d "$HOME/.local/share/gnome-shell/extensions/$uuid" ]; then
+    if [ -n "${own_extensions[$uuid]:-}" ]; then
+        if extension_installed "$uuid"; then
+            own_installed+=("$uuid")
+        else
+            own_missing+=("$uuid")
+        fi
+    elif [ -n "$package" ] && is_dnf && [ ! -d "$HOME/.local/share/gnome-shell/extensions/$uuid" ]; then
         # Native package (updated by dnf), unless a user-installed copy already takes precedence
         dnf_packages+=("$package")
     elif [ -d "$HOME/.local/share/gnome-shell/extensions/$uuid" ]; then
@@ -93,8 +110,7 @@ fi
 ego_lines=()
 ego_updates=()
 for uuid in "${ego_installed[@]}"; do
-    current="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1])).get("version", 0))' \
-        "$HOME/.local/share/gnome-shell/extensions/$uuid/metadata.json" 2> /dev/null || echo 0)"
+    current="$(metadata_version "$HOME/.local/share/gnome-shell/extensions/$uuid/metadata.json")"
     latest="$(ego_version "$uuid")"
     if [ -n "$latest" ] && version_gt "$latest" "$current"; then
         ego_lines+=("$uuid v$current -> v$latest")
@@ -112,6 +128,40 @@ for uuid in "${ego_extensions[@]}"; do
     echo "Installing $uuid from extensions.gnome.org..."
     if ! install_from_ego "$uuid"; then
         echo -e "${C_RED}Could not install $uuid for GNOME Shell $SHELL_VERSION.${C_RESET}" >&2
+        failed+=("$uuid")
+    fi
+done
+
+# Own extensions: a newer version in the clone (updated by 01-setupEnv.sh) follows the
+# update policy
+own_lines=()
+own_updates=()
+for uuid in "${own_installed[@]}"; do
+    current="$(metadata_version "$HOME/.local/share/gnome-shell/extensions/$uuid/metadata.json")"
+    latest="$(metadata_version "${own_extensions[$uuid]}/metadata.json")"
+    if version_gt "$latest" "$current"; then
+        own_lines+=("$uuid v$current -> v$latest")
+        own_updates+=("$uuid")
+    else
+        echo -e "${C_YELLOW}Already installed: $uuid (v$current)${C_RESET}"
+    fi
+done
+if confirm_updates "Extensoes proprias (clones do GitHub)" "${own_lines[@]}"; then
+    own_missing+=("${own_updates[@]}")
+fi
+
+for uuid in "${own_missing[@]}"; do
+    src="${own_extensions[$uuid]}"
+    if [ ! -f "$src/Makefile" ]; then
+        echo -e "${C_YELLOW}Skipping $uuid: no clone at $src. Run 01-setupEnv.sh with GITHUB_USER set first.${C_RESET}"
+        continue
+    fi
+    ensure_command make
+    ensure_command msgfmt gettext gettext
+    ensure_command glib-compile-schemas libglib2.0-bin glib2
+    echo "Installing $uuid from $src..."
+    if ! make -C "$src" install; then
+        echo -e "${C_RED}Could not build $uuid from $src.${C_RESET}" >&2
         failed+=("$uuid")
     fi
 done

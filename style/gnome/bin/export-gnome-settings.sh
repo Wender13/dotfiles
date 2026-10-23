@@ -105,6 +105,7 @@ DROP_KEYS+='|org/gnome/Ptyxis/window-size'
 DROP_KEYS+='|org/gnome/desktop/peripherals/keyboard/numlock-state'
 DROP_KEYS+='|org/gnome/nautilus/preferences/migrated-gtk-settings'
 
+DROP_KEYS+='|org/gnome/shell/extensions/hide-cursor-drops/debug'
 # Secret detection (case-insensitive). Extensions, custom shortcuts and terminal
 # profiles may store tokens or commands with credentials, so every exported key is checked.
 SECRET_KEY_RE='token|secret|passw|api[-_]?key|app[-_]?id|credential|oauth|auth[-_]?key|private[-_]?key|cookie'

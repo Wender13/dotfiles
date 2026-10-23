@@ -51,7 +51,7 @@ A instalação de software obedece rigorosamente à seguinte ordem de preferênc
 
 * Claude Desktop: repositório apt oficial da Anthropic (nível 1), só para Debian 12+ e Ubuntu 22.04+ (módulo 13). No Fedora não há pacote oficial: o módulo avisa e não usa conversores da comunidade (decisão do usuário).
 
-* Extensões do GNOME: usar o pacote do Fedora (`gnome-shell-extension-*`) quando existir, atualizado pelo dnf; as demais vêm do extensions.gnome.org, na versão compatível com o GNOME Shell instalado. Nunca de clones de repositório.
+* Extensões do GNOME: usar o pacote do Fedora (`gnome-shell-extension-*`) quando existir, atualizado pelo dnf; as demais vêm do extensions.gnome.org, na versão compatível com o GNOME Shell instalado. Nunca de clones de repositório, com uma exceção: as extensões do próprio usuário que não estão no extensions.gnome.org (hoje, a `hide-cursor-drops@wender13.github.io`) são clonadas pelo módulo 01 (`GITHUB_USER`) e instaladas pelo 11 com o `make install` do projeto (decisão do usuário).
 
 ## Tecnologias Envolvidas
 - Linguagem principal: `bash`

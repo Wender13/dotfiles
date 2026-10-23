@@ -39,7 +39,7 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
     - `version_gt <a> <b>`, `record_version <nome> <versao>` e `recorded_version <nome>` (registro em `~/.local/state/dotfiles/versions/` para o que não vem de pacote: temas, fontes, tema do GRUB, Plymouth).
 - `style/gnome/`: configuração do GNOME capturada de uma máquina já configurada e aplicada pelo módulo 11:
   - `dconf/*.ini`: chaves do dconf no formato de `dconf dump /` (`keybindings.ini`, `desktop.ini`, `shell.ini`, `apps.ini`). O marcador `@HOME@` é trocado pelo `$HOME` de quem aplica.
-  - `extensions.txt`: extensões a instalar, uma por linha (`[disabled] UUID [pacote Fedora]`). As marcadas `disabled` são instaladas mas ficam desligadas: o que fica ativo é decidido por `enabled-extensions`/`disabled-extensions` em `dconf/shell.ini`. O exportador lista as ativas e as desativadas instaladas pelo usuário (pasta `~/.local/share/gnome-shell/extensions` ou pacote com motivo `User` no dnf5), nunca as que vêm com o sistema.
+  - `extensions.txt`: extensões a instalar, uma por linha (`[disabled] UUID [pacote Fedora]`). As marcadas `disabled` são instaladas mas ficam desligadas: o que fica ativo é decidido por `enabled-extensions`/`disabled-extensions` em `dconf/shell.ini`. O exportador lista as ativas e as desativadas instaladas pelo usuário (pasta `~/.local/share/gnome-shell/extensions` ou pacote com motivo `User` no dnf5), nunca as que vêm com o sistema. As extensões próprias fora do extensions.gnome.org ficam no mapa `own_extensions` do módulo 11 (UUID -> clone feito pelo 01) e são instaladas com `make install`; uma versão mais nova no `metadata.json` do clone segue a política de versões.
   - `burn-my-windows/profiles/`: perfis de efeito referenciados pelas configurações da extensão.
   - `bin/export-gnome-settings.sh`: gera os três itens acima a partir do GNOME em execução, deixando de fora as extensões desinstaladas (o GNOME as mantém em `enabled-extensions` e guarda as configurações delas; as seções de configuração são reconhecidas pelos caminhos dos schemas das extensões instaladas), filtrando estado da máquina (timestamps, tamanhos de janela) e caminhos de papel de parede, e descartando chaves e valores com cara de segredo ou e-mail (lista o que descartou e aborta se algo suspeito passar). Não edite os `.ini` à mão quando der para reexportar.
 - `.github/workflows/check.yml`: CI que roda o `tools/check.sh` a cada push e pull request (ação de checkout fixada por hash, token só de leitura).
@@ -51,7 +51,7 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
 | Módulo | Responsabilidade | sudo | `.env` |
 | --- | --- | --- | --- |
 | `00-sudoAccess.sh` | Instala o `sudo` se faltar e adiciona o usuário a `sudo`/`wheel`, `adm` e `systemd-journal`; sem sudo, usa o `su` (senha de root) uma única vez. Só adiciona, igual nos dois modos | só `su`, quando falta | - |
-| `01-setupEnv.sh` | Cria a estrutura `~/Dev` e clona os forks pessoais das extensões do GNOME (só no GNOME) e do tema GRUB | não | `GITHUB_USER` |
+| `01-setupEnv.sh` | Cria a estrutura `~/Dev` e clona os repositórios pessoais: forks e extensão própria do GNOME (só no GNOME) e tema GRUB | não | `GITHUB_USER` |
 | `02-permissions.sh` | Permissão de execução em `app.sh` e nos scripts de `scripts/`, `style/` e `tools/` | não | - |
 | `03-update.sh` | Atualiza sistema e Flatpaks conforme a política de versões; avisa sobre firmware (`fwupdmgr`) e reinício pendente | sim | - |
 | `04-commonPrograms.sh` | Remove o LibreOffice e, no GNOME, o bloatware do GNOME (no apt, só o que não arrasta outros pacotes), habilita RPM Fusion (no Debian, `contrib`/`non-free`), codecs, driver VA-API da GPU (AMD/Intel) e pacotes base (GNOME Tweaks só no GNOME) | sim | - |
@@ -106,7 +106,7 @@ Para máquinas já configuradas em parte. O que cada módulo faz de diferente:
 ## Dependências entre Módulos
 - Todo módulo que usa `sudo` depende do acesso que o 00 garante (no Debian instalado com senha de root, o usuário começa sem sudo). O `--all` checa isso antes de começar.
 - O 13 instala os apps Desktop das CLIs que o 09 instala (`claude` e `agy`); os dois módulos são independentes.
-- O 10 instala o tema GRUB a partir do repositório clonado pelo 01.
+- O 10 instala o tema GRUB a partir do repositório clonado pelo 01, e o 11 instala a extensão própria (`hide-cursor-drops@wender13.github.io`) a partir do clone do 01; sem o clone, o 11 a pula com aviso.
 - O 05 precisa do `flatpak`, instalado pelo 04 (o `ensure_command` cobre a execução isolada).
 - O `.zshrc` copiado pelo 08 é o do uso diário do dono do repositório. Ele coloca no PATH o que o 09 instala (fnm, pnpm em `$PNPM_HOME/bin`, cargo) e carrega cada ferramenta só se ela existir. Mudanças nele devem partir do `~/.zshrc` em uso, sem caminhos `/home/<usuário>`.
 - O 11 aplica os temas instalados pelo 10 (`Orchis-Dark`, `Tela-circle-dark`, `Vimix-cursors`) e fixa no dock apps instalados pelo 05 e pelo 06. Se mudar um tema no 10, reexporte as configurações.
