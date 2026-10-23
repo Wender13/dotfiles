@@ -278,6 +278,13 @@ As regras são heurísticas: revise sempre o `git diff` antes de commitar.
 - Os temas de ícones e cursores do seu `$HOME` são copiados para `/usr/share/icons`, porque a tela de login não lê a sua pasta pessoal. Rode o 10 antes.
 - Aparece na próxima vez que a tela de login abrir (logout ou reinício). Sem GDM (outro gerenciador de login) ou fora do GNOME, o módulo avisa e termina sem fazer nada.
 
+**Só a tela de login, completa (14 e o beta 15).** Para aplicar só os dois módulos do GDM, sem rodar o resto:
+```bash
+bash scripts/14-loginScreen.sh        # sem risco: escura, seus ícones, sem logo (pede o sudo)
+bash scripts/15-loginBackground.sh    # beta: fundo com o papel de parede desfocado (mostra os riscos e pede 'sim')
+```
+Ou pelo menu: `./app.sh --beta`, digite `14`, depois `15`. Faça logout para ver o resultado. Para desfazer só o fundo: `bash scripts/15-loginBackground.sh --restore` (caso de uso 16).
+
 ### 16. Testar funcionalidades experimentais (beta)
 ```bash
 ./app.sh --beta              # menu com a seção BETA
