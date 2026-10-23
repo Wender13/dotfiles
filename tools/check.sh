@@ -71,6 +71,16 @@ for f in "${MODULES[@]}"; do
     if grep -qE '(gsettings|dconf|gnome-extensions) ' "$f" && ! grep -qE 'require_gnome|gnome_only|is_gnome' "$f"; then
         fail "$name: changes GNOME settings without require_gnome or gnome_only"; modules_ok=0
     fi
+    # Experimental modules carry their whole warning and ask before changing anything
+    stage=$(sed -n 's/^# STAGE:[[:space:]]*//p' "$f" | head -n1)
+    if [ -n "$stage" ] && [ "$stage" != "beta" ]; then
+        fail "$name: unknown STAGE '$stage' (only beta)"; modules_ok=0
+    elif [ "$stage" = "beta" ]; then
+        for tag in FUNCTION DOES RISK UNDO; do
+            grep -q "^# BETA_$tag: ." "$f" || { fail "$name: beta module without '# BETA_$tag:'"; modules_ok=0; }
+        done
+        grep -q '^confirm_beta' "$f" || { fail "$name: beta module does not call confirm_beta"; modules_ok=0; }
+    fi
 done
 [ -x app.sh ] || { fail "app.sh: not executable (chmod +x)"; modules_ok=0; }
 # The menu number is the file prefix, so two modules cannot share one
@@ -79,7 +89,7 @@ duplicates="$(for f in "${MODULES[@]}"; do basename "$f" | cut -c1-2; done | sor
 [ "$modules_ok" -eq 1 ] && ok "${#MODULES[@]} modules follow the header, preamble, naming and GNOME guard rules"
 
 echo "Menu rendering"
-widths=$(printf 'q\n' | TERM=dumb ./app.sh 2>/dev/null \
+widths=$({ printf 'q\n' | TERM=dumb ./app.sh; printf 'q\n' | TERM=dumb ./app.sh --beta; } 2>/dev/null \
     | sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' | grep -E '^[│╭╰├]' \
     | while IFS= read -r line; do echo "${#line}"; done | sort -u | tr '\n' ' ')
 # (bash counts characters; mawk, the default awk on Debian/Ubuntu, would count bytes)

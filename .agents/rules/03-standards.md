@@ -77,7 +77,7 @@ cp "$DOTFILES_DIR/terminal/.zshrc" "$HOME/.zshrc"
 
 ## 6. Como Adicionar Novos Passos
 Quando uma IA for solicitada a "adicionar um novo passo na automação", ela deve:
-1. Criar o novo script em `scripts/NN-nome.sh` (o número define a posição no menu e no `--all` e é o número que se digita no menu, então não pode repetir; nome com no máximo 24 caracteres, incluindo `.sh`).
+1. Decidir se o passo é experimental (seção 9). Criar o novo script em `scripts/NN-nome.sh` (o número define a posição no menu e no `--all` e é o número que se digita no menu, então não pode repetir; nome com no máximo 24 caracteres, incluindo `.sh`).
 2. Incluir o cabeçalho de metadados e o preâmbulo padrão:
    ```bash
    #!/bin/bash
@@ -116,3 +116,12 @@ NUNCA execute os módulos reais no sistema do usuário para testar: eles instala
 - Não edite `style/gnome/dconf/*.ini` nem `extensions.txt` à mão quando a mudança puder ser feita no GNOME e reexportada com `bash style/gnome/bin/export-gnome-settings.sh`.
 - Ao incluir uma nova seção do dconf no exportador, confira o conteúdo: o dconf guarda estado da máquina e dados pessoais (histórico de pastas, contas, credenciais de rede como `org/gnome/nm-applet/eap`). Inclua por lista de seções permitidas, nunca o dump inteiro. Os filtros de segredos do exportador (`SECRET_KEY_RE`, `SECRET_VALUE_RE`, `EMAIL_RE`) valem para todas as seções; ao ampliá-los ou mudá-los, teste com um dump sintético contendo segredos falsos (um `dconf` falso no `PATH` que imprime o dump) e confirme que a exportação real não muda.
 - Caminhos dentro do `$HOME` devem virar o marcador `@HOME@` (o exportador faz isso e falha se sobrar algum).
+
+## 9. Módulos Experimentais (beta)
+O que tem risco real de deixar o sistema num estado ruim (alterar arquivos que pertencem a pacotes, mexer no que o GDM ou o boot carregam sem um mecanismo oficial) não entra no fluxo normal: vira um módulo experimental.
+- **Cabeçalho**: além de `MENU_DESC` (começando por `[BETA]`) e `CATEGORY: BETA`, o módulo declara `# STAGE: beta` e pelo menos uma linha de cada: `# BETA_FUNCTION:` (para que serve), `# BETA_DOES:` (o que altera, com caminhos e comandos), `# BETA_RISK:` (o que pode dar errado, incluindo o que não foi validado) e `# BETA_UNDO:` (como desfazer, inclusive se a sessão gráfica não abrir). Esse texto é o aviso mostrado ao usuário: seja técnico e concreto.
+- **Confirmação**: chame `confirm_beta` depois do preâmbulo (e do `require_gnome`, se houver) e antes de qualquer mudança. Ações que só desfazem (ex: `--restore`) podem vir antes dela.
+- **Desfazer**: guarde o original antes de substituir (fora do diretório do pacote, ex: `/var/lib/dotfiles/`), ofereça `--restore` e indique também o caminho pelo gerenciador de pacotes (`dnf reinstall`, `apt-get install --reinstall`).
+- **Defesas**: recuse com mensagem clara as versões e distribuições que não foram testadas; valide o resultado antes de substituir o arquivo do sistema; substitua por cópia ao lado e `mv` (nunca deixe um arquivo pela metade).
+- **Modo completar**: o que o módulo altera é um ajuste que sempre tem valor; no `missing`, mantenha o atual.
+- O `tools/check.sh` exige os quatro campos e a chamada a `confirm_beta` em todo módulo com `STAGE: beta`.

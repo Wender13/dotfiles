@@ -8,14 +8,14 @@ trigger: always_on
 O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
 
 ## Estrutura de Diretórios
-- `app.sh` (Raiz): **O Ponto de Entrada**. Descobre os módulos dinamicamente, lendo `scripts/*.sh` (exceto `lib.sh`) em ordem alfabética, por isso o prefixo numérico. Renderiza o menu interativo e aceita, em qualquer ordem, `--all` (execução headless) ou `--gui` (interface gráfica, que recebe a política e o modo resolvidos), uma política de versões (`--ask`, `--update` ou `--keep`), um modo de configuração (`--full` ou `--only-missing`) e `--help`; qualquer outra opção é recusada. Resolve o modo (flag > `CONFIG_MODE` do `.env` > `full`) e a política (flag > `UPDATE_POLICY` do `.env` > padrão: `ask` no menu, `keep` no `--all` e no `--only-missing`), mostra os dois no topo do menu e os repassa aos módulos em `DOTFILES_CONFIG_MODE` e `DOTFILES_UPDATE_POLICY`. O `app.sh` NUNCA executa comandos de sistema pesados diretamente; ele apenas delega para os scripts.
+- `app.sh` (Raiz): **O Ponto de Entrada**. Descobre os módulos dinamicamente, lendo `scripts/*.sh` (exceto `lib.sh`) em ordem alfabética, por isso o prefixo numérico. Renderiza o menu interativo e aceita, em qualquer ordem, `--all` (execução headless) ou `--gui` (interface gráfica, que recebe a política e o modo resolvidos), uma política de versões (`--ask`, `--update` ou `--keep`), um modo de configuração (`--full` ou `--only-missing`), `--beta` (inclui os módulos experimentais) e `--help`; qualquer outra opção é recusada. Resolve o modo (flag > `CONFIG_MODE` do `.env` > `full`) e a política (flag > `UPDATE_POLICY` do `.env` > padrão: `ask` no menu, `keep` no `--all` e no `--only-missing`), mostra os dois no topo do menu e os repassa aos módulos em `DOTFILES_CONFIG_MODE` e `DOTFILES_UPDATE_POLICY`. O `app.sh` NUNCA executa comandos de sistema pesados diretamente; ele apenas delega para os scripts.
 - `gui/dotfiles_gui.py`: **a interface gráfica** (Python + GTK 4 + libadwaita + VTE, tudo já instalado no Fedora Workstation: o Ptyxis depende do VTE). Lê os módulos com as mesmas regras do `app.sh` e roda cada um num terminal embutido (VTE), onde a senha do sudo, as perguntas da política de versões, o seletor do 12 e o Ctrl+C funcionam como no menu; "Run All" executa `./app.sh --all --<política>`. Tem a chave "Only What Is Missing" (modo completar; ligada, muda a política para Keep). Segue o estilo do sistema (claro/escuro, cor de destaque, alto contraste) e permite forçar claro ou escuro (preferência em `~/.config/dotfiles/gui.ini`). O menu da janela cria o atalho `~/.local/share/applications/local.dotfiles.Setup.desktop` (ícone `gui/dotfiles.svg`). Sem display, sai com erro e indica o menu do terminal.
 - `scripts/NN-nome.sh`: os módulos, onde toda a "mão na massa" acontece. O nome do arquivo deve ter no máximo 24 caracteres (largura da coluna do menu; acima disso é truncado). Cada módulo declara seus metadados no cabeçalho:
   ```bash
   # MENU_DESC: Descricao curta (maximo 44 caracteres; acima disso e truncada no menu)
   # CATEGORY: NOME_DA_SECAO
   ```
-  A `CATEGORY` vazia mantém o módulo na seção anterior. Módulos consecutivos com a mesma `CATEGORY` compartilham um único cabeçalho de seção.
+  A `CATEGORY` vazia mantém o módulo na seção anterior. Um módulo experimental acrescenta `# STAGE: beta` e uma ou mais linhas de cada um de `# BETA_FUNCTION:`, `# BETA_DOES:`, `# BETA_RISK:` e `# BETA_UNDO:` (o aviso mostrado antes de rodar); sem `--beta`, o `app.sh` e a interface gráfica o escondem. Módulos consecutivos com a mesma `CATEGORY` compartilham um único cabeçalho de seção.
 - `scripts/lib.sh`: **O Núcleo Utilitário**, injetado (`source`) no topo de cada módulo. Fornece:
   - Cores: `C_RESET`, `C_RED`, `C_GREEN`, `C_YELLOW`, `C_BLUE`, `C_CYAN`, `C_BOLD`, `C_DIM`.
   - `DOTFILES_DIR`: caminho absoluto da raiz do repositório.
@@ -31,6 +31,8 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
   - `clone_if_missing <repo> <destino>`.
   - `load_env`: carrega o `.env` da raiz, se existir.
   - `ensure_flathub`: garante o remoto Flathub de sistema, habilitado e sem filtro.
+  - `ensure_gdkpixbuf`: Python com GdkPixbuf (o que o GNOME usa para desenhar imagens), usado pelos módulos 12 e 15.
+  - Módulos experimentais: `beta_notice <arquivo>` (imprime o aviso do cabeçalho) e `confirm_beta` (chamada pelo módulo beta antes de alterar algo: mostra o aviso e exige `sim`; com `DOTFILES_BETA_CONFIRMED=1`, vindo do `--all --beta`, segue sem perguntar; sem terminal, termina sem mudanças).
   - Política de versões (`UPDATE_POLICY`: `ask`, `update` ou `keep`; `ask` sem terminal vira `keep`):
     - `install_packages <titulo> <pacotes...>`: instala os que faltam e oferece as versões novas dos instalados. Separados: `install_missing_packages` (nunca atualiza) e `offer_package_upgrades <titulo> <pacotes...>`. Grupos `@...` são sempre passados ao gerenciador.
     - `install_flatpaks <apps...>`: o mesmo para Flatpaks de sistema.
@@ -84,6 +86,11 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
 4. Fora do GNOME, um aviso no topo indica que as etapas do GNOME serão puladas (a regra é a do `is_gnome`, consultada no `lib.sh`).
 
 ### Headless (`./app.sh --all`)
+### Módulos experimentais (`--beta`)
+1. Sem `--beta`, os módulos com `# STAGE: beta` não existem para o menu, o `--all` e a interface gráfica (o `app.sh` os remove da lista e exporta `DOTFILES_BETA=0`).
+2. Com `--beta`, o menu mostra uma linha de aviso no topo e a seção BETA. Rodado pelo menu, pela interface ou direto (`bash scripts/15-...`), o módulo chama `confirm_beta`, que imprime o aviso do cabeçalho e só segue se o usuário digitar `sim`.
+3. No `--all --beta`, o `app.sh` imprime o aviso de todos os módulos beta e pede uma única confirmação logo no início, antes do `sudo -v`. Confirmado, exporta `DOTFILES_BETA_CONFIRMED=1` e os módulos beta rodam na sua vez sem perguntar; recusado ou sem terminal, eles saem da lista e o resto roda normalmente.
+
 1. Grava a execução inteira em `~/.local/state/dotfiles/logs/setup-<data>.log` (pasta 700, os 10 mais recentes são mantidos). Com o `script` do util-linux disponível, o `app.sh` se reexecuta dentro dele (mantém o terminal, as barras de progresso e as cores); sem ele, usa `tee`. Só a saída é gravada, nunca o que é digitado.
 2. Checa se a sessão já pode usar o sudo (`has_sudo_access`). Se não pode (Debian instalado com senha de root), roda só o módulo 00, que pede a senha de root, e para pedindo logout e login. Depois, pede a senha do sudo uma única vez e mantém o timestamp ativo em segundo plano enquanto roda. Ao terminar (inclusive por Ctrl+C), invalida as credenciais em cache (`sudo -k`).
 3. Executa todos os módulos em ordem, sem limpar a tela, preservando a saída de cada um.

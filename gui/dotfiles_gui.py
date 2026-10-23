@@ -86,14 +86,23 @@ class Module:
         return self.path.name
 
 
+def beta_enabled():
+    """./app.sh --gui --beta also lists the experimental modules (# STAGE: beta)."""
+    return os.environ.get("DOTFILES_BETA") == "1"
+
+
 def discover_modules():
     """Same rules as app.sh: scripts/*.sh except lib.sh, in name order. An empty CATEGORY
-    keeps the module in the previous section."""
+    keeps the module in the previous section. Experimental modules only with --beta: each
+    one shows its warning and asks for confirmation in the embedded terminal."""
     modules, category = [], ""
     for path in sorted(SCRIPTS_DIR.glob("*.sh")):
         if path.name == "lib.sh":
             continue
         text = path.read_text(errors="replace")
+        stage = re.search(r"^# STAGE:[ \t]*(.*)$", text, re.MULTILINE)
+        if stage and stage.group(1).strip() == "beta" and not beta_enabled():
+            continue
         desc = re.search(r"^# MENU_DESC:[ \t]*(.*)$", text, re.MULTILINE)
         cat = re.search(r"^# CATEGORY:[ \t]*(.*)$", text, re.MULTILINE)
         if cat and cat.group(1).strip():
@@ -521,11 +530,14 @@ class SetupWindow(Adw.ApplicationWindow):
             "Run every module?",
             f"The {len(self.modules)} modules run in order. The sudo password is asked once, a failing "
             f"module does not stop the next ones, and the run is logged in {home_relative(LOG_DIR)}."
-            f"\n\n{self._settings_summary()}",
+            + (" Experimental modules show their risks and ask for confirmation at the start; "
+               "declined, the run goes on without them." if beta_enabled() else "")
+            + f"\n\n{self._settings_summary()}",
             "Run All",
             lambda: self.run("Every module", self._run_subtitle("./app.sh --all"),
                              [str(ROOT / "app.sh"), "--all", f"--{self.policy}",
-                              "--only-missing" if self.config_mode == "missing" else "--full"]),
+                              "--only-missing" if self.config_mode == "missing" else "--full"]
+                             + (["--beta"] if beta_enabled() else [])),
         )
 
     def _on_close_request(self, _window):

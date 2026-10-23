@@ -206,6 +206,50 @@ keep_existing() {
     echo -e "${C_YELLOW}Only-missing mode: keeping $1.${C_RESET}"
 }
 
+# ─── Experimental (beta) modules ──────────────────────────────────────────────
+# A module with "# STAGE: beta" changes something riskier than the rest. app.sh lists and runs
+# it only with --beta, and the module asks for confirmation before changing anything. Its
+# header holds the warning, one or more lines of each:
+#   # BETA_FUNCTION: what it is for     # BETA_DOES: what it changes, technically
+#   # BETA_RISK: what can go wrong      # BETA_UNDO: how to go back
+
+# Prints the warning of the beta module $1 (a script path)
+beta_notice() {
+    local file=$1 tag label
+    echo -e "\n${C_RED}${C_BOLD}!! MODULO EXPERIMENTAL (beta): $(basename "$file")${C_RESET}"
+    for tag in FUNCTION DOES RISK UNDO; do
+        case "$tag" in
+            FUNCTION) label="Funcao" ;;
+            DOES)     label="O que faz" ;;
+            RISK)     label="Riscos" ;;
+            UNDO)     label="Como desfazer" ;;
+        esac
+        echo -e "${C_BOLD}  $label:${C_RESET}"
+        sed -n "s/^# BETA_$tag:[[:space:]]*/    - /p" "$file"
+    done
+}
+
+# Called by every beta module before it changes anything. app.sh --all --beta confirms all of
+# them at the start (DOTFILES_BETA_CONFIRMED=1); otherwise the module shows its warning and asks.
+# Anything but "sim" (or no terminal to ask on) ends the module without changes.
+confirm_beta() {
+    local answer=""
+    if [ "${DOTFILES_BETA_CONFIRMED:-}" = "1" ]; then
+        echo -e "${C_YELLOW}Modulo experimental confirmado no inicio da execucao.${C_RESET}"
+        return 0
+    fi
+    beta_notice "$0"
+    if [ ! -t 0 ]; then
+        echo -e "${C_YELLOW}Sem terminal para confirmar: nada foi alterado.${C_RESET}"
+        exit 0
+    fi
+    read -r -p "  Digite 'sim' para executar: " answer || true
+    if [ "$answer" != "sim" ]; then
+        echo -e "${C_YELLOW}Nao confirmado: nada foi alterado.${C_RESET}"
+        exit 0
+    fi
+}
+
 # ─── Update policy ────────────────────────────────────────────────────────────
 # What happens when something is already installed and a newer version exists:
 #   ask    - list "current -> new", warn and ask once per group (default answer: keep)

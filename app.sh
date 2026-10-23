@@ -27,6 +27,7 @@ fi
 scripts=()
 descriptions=()
 categories=()
+stages=()
 
 # Arrays dinâmicos populados lendo o cabeçalho dos scripts (glob já vem ordenado)
 for script_file in "$SCRIPT_DIR"/*.sh; do
@@ -40,11 +41,27 @@ for script_file in "$SCRIPT_DIR"/*.sh; do
     # Extrai metadados
     desc=$(grep '^# MENU_DESC:' "$script_file" | sed 's/^# MENU_DESC:[[:space:]]*//')
     cat=$(grep '^# CATEGORY:' "$script_file" | sed 's/^# CATEGORY:[[:space:]]*//')
+    stage=$(grep '^# STAGE:' "$script_file" | sed 's/^# STAGE:[[:space:]]*//')
 
     scripts+=("$base_name")
     descriptions+=("${desc:-Executar módulo $base_name}")
     categories+=("$cat")
+    stages+=("$stage")
 done
+
+# Removes the experimental modules (# STAGE: beta) from the lists
+drop_beta_modules() {
+    local i
+    for i in "${!scripts[@]}"; do
+        if [ "${stages[$i]}" = "beta" ]; then
+            unset 'scripts[i]' 'descriptions[i]' 'categories[i]' 'stages[i]'
+        fi
+    done
+    scripts=("${scripts[@]}")
+    descriptions=("${descriptions[@]}")
+    categories=("${categories[@]}")
+    stages=("${stages[@]}")
+}
 
 # ─── Box drawing helpers ──────────────────────────────────────────────────────
 
@@ -118,6 +135,10 @@ show_menu() {
     _center "${C_DIM}${policy_plain}${C_RESET}" "${#policy_plain}"
     local config_plain="modo -> $CONFIG_LABEL"
     _center "${C_DIM}${config_plain}${C_RESET}" "${#config_plain}"
+    if [ "$BETA" -eq 1 ]; then
+        local beta_plain="beta -> modulos experimentais visiveis (pedem confirmacao)"
+        _center "${C_RED}${beta_plain}${C_RESET}" "${#beta_plain}"
+    fi
     _empty
 
     # Consecutive modules with the same CATEGORY share one section header
@@ -196,7 +217,7 @@ start_sudo_keepalive() {
 
 usage() {
     cat <<EOF
-Usage: ./app.sh [--all | --gui] [--ask | --update | --keep] [--full | --only-missing]
+Usage: ./app.sh [--all | --gui] [--ask | --update | --keep] [--full | --only-missing] [--beta]
        ./app.sh --help
   (no option)  Interactive menu
   --all        Run every module in order, without the menu (headless)
@@ -216,6 +237,10 @@ Usage: ./app.sh [--all | --gui] [--ask | --update | --keep] [--full | --only-mis
                   (implies --keep unless a policy is chosen)
   CONFIG_MODE=full|missing in .env changes the default; a flag overrides it.
 
+  --beta       Also list and run the experimental modules (# STAGE: beta). Each one
+               shows what it does and its risks and asks before changing anything;
+               with --all, every confirmation is asked at the start, before sudo.
+
   --help       Show this help
 EOF
 }
@@ -224,8 +249,10 @@ EOF
 MODE="menu"
 POLICY_FLAG=""
 CONFIG_FLAG=""
+BETA=0
 for arg in "$@"; do
     case "$arg" in
+        --beta) BETA=1 ;;
         --all|--gui)
             if [ "$MODE" != "menu" ] && [ "$MODE" != "${arg#--}" ]; then
                 printf "${C_RED}Choose only one of --all and --gui.${C_RESET}\n" >&2
@@ -257,6 +284,13 @@ for arg in "$@"; do
             ;;
     esac
 done
+
+# Experimental modules only exist for this run with --beta
+if [ "$BETA" -eq 0 ]; then
+    drop_beta_modules
+fi
+# Read by the graphical interface, which lists the modules with the same rules
+export DOTFILES_BETA="$BETA"
 
 # Config mode: flag > CONFIG_MODE in .env > full
 ENV_FILE="$(dirname "$(realpath "$0")")/.env"
@@ -334,6 +368,30 @@ if [ "$MODE" = "all" ]; then
     echo -e "${C_BLUE}${C_BOLD}>> Rodando em Modo Headless (--all)${C_RESET}"
     echo -e "${C_DIM}>> Versoes: $POLICY_LABEL${C_RESET}"
     echo -e "${C_DIM}>> Modo: $CONFIG_LABEL${C_RESET}"
+
+    # Experimental modules: every warning and the one confirmation come first, so the run
+    # can then go on unattended. Declined (or no terminal to ask on), they are left out.
+    beta_modules=()
+    for i in "${!scripts[@]}"; do
+        [ "${stages[$i]}" = "beta" ] && beta_modules+=("${scripts[$i]}")
+    done
+    if [ ${#beta_modules[@]} -gt 0 ]; then
+        for module in "${beta_modules[@]}"; do
+            bash -c 'source "$1" > /dev/null; beta_notice "$2"' _ "$SCRIPT_DIR/lib.sh" "$SCRIPT_DIR/$module"
+        done
+        answer=""
+        if [ -t 0 ]; then
+            echo ""
+            read -r -p "  Digite 'sim' para incluir os ${#beta_modules[@]} modulo(s) experimental(is) nesta execucao: " answer
+        fi
+        if [ "$answer" = "sim" ]; then
+            export DOTFILES_BETA_CONFIRMED=1
+            echo -e "${C_YELLOW}>> Modulos experimentais incluidos: ${beta_modules[*]}${C_RESET}"
+        else
+            drop_beta_modules
+            echo -e "${C_YELLOW}>> Nao confirmado: seguindo sem os modulos experimentais.${C_RESET}"
+        fi
+    fi
 
     # Every module needs sudo. Without it (Debian installed with a root password), module 00
     # sets it up with su first; the new group only works after a new login.

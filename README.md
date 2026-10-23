@@ -72,6 +72,7 @@ cp .env.example .env && $EDITOR .env   # preencha todas as chaves
 - Os módulos rodam em ordem (00 a 14), sem limpar a tela, então a saída de cada um fica no histórico do terminal.
 - Por padrão o `--all` **não mexe no que já está instalado** (política `keep`): só instala o que falta e lista o que tem versão mais nova. Para ser perguntado, use `./app.sh --all --ask`; para atualizar tudo, `./app.sh --all --update` (caso de uso 5).
 - Rode a partir de um terminal **dentro da sessão do GNOME**: os módulos 11 e 12 aplicam as configurações pela sessão gráfica.
+- Os módulos experimentais (beta) só entram com `./app.sh --all --beta`. Nesse caso, os avisos de risco de todos eles e **uma única confirmação** (digite `sim`) aparecem logo no início, antes da senha do sudo, e o resto roda sozinho. Recusou? A execução segue sem os módulos beta (caso de uso 16).
 - A máquina já está configurada em parte? Use `./app.sh --all --only-missing`: nada é removido e o que você já configurou fica (caso de uso 4).
 - Se um módulo falhar, os seguintes continuam. No fim aparece a lista dos módulos com falha, e o comando sai com código `1` (ou `0` se tudo deu certo).
 - Sem `.env`, o 01 e o 07 fazem perguntas no meio da execução, e o 12 abre o seletor de arquivos para o papel de parede e a foto do usuário (Cancelar mantém os atuais).
@@ -400,6 +401,7 @@ Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de us
 | `confirm_updates titulo linha...` | Mostra `atual -> nova`, o aviso e decide pela política (`ask` pergunta) |
 | `record_version` / `recorded_version` | Registro de versão do que não vem de pacote (temas, fontes) |
 | `version_gt a b` | Compara versões (`24.9` < `24.21`) |
+4. **Passo com risco** (altera arquivos de pacotes, o que o GDM ou o boot carregam etc.)? Faça um módulo experimental: `# MENU_DESC: [BETA] ...`, `# CATEGORY: BETA`, `# STAGE: beta` e pelo menos uma linha de `# BETA_FUNCTION:`, `# BETA_DOES:`, `# BETA_RISK:` e `# BETA_UNDO:` (o aviso, técnico), e chame `confirm_beta` antes de qualquer mudança. Ele só aparece com `--beta`. Regras em `.agents/rules/03-standards.md`, seção 9.
 | `UPDATE_POLICY` | Política em uso: `ask`, `update` ou `keep` |
 | `only_missing` / `CONFIG_MODE` | Verdadeiro no modo completar (`--only-missing`); `CONFIG_MODE` é `full` ou `missing` |
 | `keep_existing "o quê"` | Avisa que algo que já existia foi mantido (modo completar) |
@@ -415,6 +417,8 @@ Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de us
 - **GNOME só no GNOME**: módulos que só configuram o GNOME chamam `require_gnome`; etapas do GNOME em outros módulos ficam dentro de `gnome_only`. O `tools/check.sh` falha se um módulo usar `gsettings`, `dconf` ou `gnome-extensions` sem essa proteção.
 - **Sem caminhos fixos**: use `$SCRIPT_DIR`, `$DOTFILES_DIR`, `$HOME` e `mktemp`.
 - **Sem dados pessoais no código**: use o `.env`.
+| `ensure_gdkpixbuf` | Python com GdkPixbuf, para abrir e gerar imagens como o GNOME |
+| `beta_notice` / `confirm_beta` | Aviso de um módulo experimental (lido do cabeçalho) e confirmação por `sim` antes de qualquer mudança |
 - **Fedora**: só sintaxe do dnf5 e nomes de pacote validados (detalhes em `.agents/rules/06-fedora.md`).
 
 ### Validar mudanças sem tocar no sistema

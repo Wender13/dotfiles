@@ -6,7 +6,7 @@ A fonte de verdade das regras é a pasta `.agents/rules/` (formato do Antigravit
 
 1. **Idioma**: Converse e escreva documentação em Português. Mensagens de commit são em Inglês.
 
-2. **Arquitetura**: O `app.sh` (menu e `--all`) e a interface gráfica (`gui/`, aberta por `./app.sh --gui`) apenas listam os módulos e delegam. Toda automação é um módulo em `scripts/NN-nome.sh` com os cabeçalhos `# MENU_DESC:` (máximo 44 caracteres) e `# CATEGORY:`. O menu descobre os módulos sozinho, então não é preciso editar o `app.sh`.
+2. **Arquitetura**: O `app.sh` (menu e `--all`) e a interface gráfica (`gui/`, aberta por `./app.sh --gui`) apenas listam os módulos e delegam. Toda automação é um módulo em `scripts/NN-nome.sh` com os cabeçalhos `# MENU_DESC:` (máximo 44 caracteres) e `# CATEGORY:`. O menu descobre os módulos sozinho, então não é preciso editar o `app.sh`. Módulos arriscados são experimentais (`# STAGE: beta` e as linhas `# BETA_FUNCTION/DOES/RISK/UNDO:`): só aparecem e rodam com `--beta` e chamam `confirm_beta` antes de alterar qualquer coisa (`.agents/rules/03-standards.md`, seção 9).
 
 3. **Fail-Fast**: Todo módulo começa com `set -euo pipefail`, importa `scripts/lib.sh` e chama `detect_distro`. É proibido usar `|| true` para esconder erros e encadear comandos críticos com `&&`.
 
