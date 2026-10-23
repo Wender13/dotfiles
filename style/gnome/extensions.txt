@@ -17,4 +17,6 @@ wack-lockscreen-clock@rinzler69-wastaken.github.com
 copyous@boerdereinar.dev
 wiggly@mojarch
 usb-notify@jiesou.github.io
+appindicatorsupport@rgcjonas.gmail.com                  gnome-shell-extension-appindicator
+hide-cursor-drops@wender13.github.io
 disabled blur-my-shell@aunetx                           gnome-shell-extension-blur-my-shell
