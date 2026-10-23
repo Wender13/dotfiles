@@ -162,6 +162,19 @@ ensure_flathub() {
     sudo flatpak remote-modify --enable --no-filter flathub
 }
 
+# Python with GdkPixbuf, what GNOME uses to draw wallpapers and user pictures: an image it
+# opens is an image GNOME can show
+ensure_gdkpixbuf() {
+    ensure_command python3 python3 python3
+    if ! python3 -c 'import gi; gi.require_version("GdkPixbuf", "2.0"); from gi.repository import GdkPixbuf' 2> /dev/null; then
+        if is_dnf; then
+            install_missing_packages python3-gobject gdk-pixbuf2
+        else
+            install_missing_packages python3-gi gir1.2-gdkpixbuf-2.0
+        fi
+    fi
+}
+
 # ─── Config mode ──────────────────────────────────────────────────────────────
 # What happens to what the system already has:
 #   full    - apply the repository configuration (the original behavior)

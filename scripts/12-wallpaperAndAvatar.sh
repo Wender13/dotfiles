@@ -19,17 +19,8 @@ if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
     exit 1
 fi
 
-ensure_command python3 python3 python3
 ensure_command dconf dconf-cli dconf   # tells a wallpaper you set from the default one
-# GdkPixbuf is what GNOME uses to draw wallpapers and user pictures, so an image it opens
-# here is an image GNOME can show
-if ! python3 -c 'import gi; gi.require_version("GdkPixbuf", "2.0"); from gi.repository import GdkPixbuf' 2> /dev/null; then
-    if is_dnf; then
-        install_missing_packages python3-gobject gdk-pixbuf2
-    else
-        install_missing_packages python3-gi gir1.2-gdkpixbuf-2.0
-    fi
-fi
+ensure_gdkpixbuf
 
 PICTURES_DIR="$(xdg-user-dir PICTURES 2> /dev/null)" || PICTURES_DIR="$HOME"
 [ -d "$PICTURES_DIR" ] || PICTURES_DIR="$HOME"
