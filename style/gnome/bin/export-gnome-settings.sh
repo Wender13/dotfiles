@@ -38,6 +38,10 @@ import ast, glob, json, os, re, subprocess, sys
 dump_path = sys.argv[1]
 installed = subprocess.run(["gnome-extensions", "list"], capture_output=True, text=True, check=True).stdout.split()
 roots = [os.path.expanduser("~/.local/share/gnome-shell/extensions"), "/usr/share/gnome-shell/extensions"]
+# The running shell only lists an extension installed in this session after a new login
+# (Wayland), so the folders on disk count as well
+installed += [os.path.basename(os.path.dirname(m)) for r in roots for m in glob.glob(os.path.join(r, "*", "metadata.json"))]
+installed = list(dict.fromkeys(installed))
 
 def schema_paths(xml_file):
     with open(xml_file) as f:
@@ -101,11 +105,11 @@ DROP_KEYS+='|org/gnome/shell/extensions/blur-my-shell/rounded-blur-found'
 DROP_KEYS+='|org/gnome/shell/extensions/burn-my-windows/(last-extension-version|prefs-open-count|preview-effect)'
 DROP_KEYS+='|org/gnome/shell/extensions/caffeine/(user-enabled|indicator-position-max|cli-toggle|toggle-state)'
 DROP_KEYS+='|org/gnome/shell/extensions/tilingshell/last-version-name-installed'
+DROP_KEYS+='|org/gnome/shell/extensions/hide-cursor-drops/debug'
 DROP_KEYS+='|org/gnome/Ptyxis/window-size'
 DROP_KEYS+='|org/gnome/desktop/peripherals/keyboard/numlock-state'
 DROP_KEYS+='|org/gnome/nautilus/preferences/migrated-gtk-settings'
 
-DROP_KEYS+='|org/gnome/shell/extensions/hide-cursor-drops/debug'
 # Secret detection (case-insensitive). Extensions, custom shortcuts and terminal
 # profiles may store tokens or commands with credentials, so every exported key is checked.
 SECRET_KEY_RE='token|secret|passw|api[-_]?key|app[-_]?id|credential|oauth|auth[-_]?key|private[-_]?key|cookie'
@@ -204,8 +208,15 @@ user_installed_extension() {
     echo "# Packaged ones are installed with dnf on Fedora; the rest come from extensions.gnome.org."
     echo "# \"disabled\" ones are installed but stay off (org/gnome/shell in dconf/shell.ini decides"
     echo "# what is enabled); their settings are exported as well."
-    gnome-extensions list --enabled | while read -r uuid; do
-        extension_line "" "$uuid"
+    # Enabled ones come from the setting, not from the running shell, which only lists an
+    # extension installed in this session after a new login
+    dconf read /org/gnome/shell/enabled-extensions | python3 -c '
+import ast, sys
+value = sys.stdin.read().strip().removeprefix("@as").strip()
+print("\n".join(ast.literal_eval(value) if value else []))' | while read -r uuid; do
+        if [ -d "$HOME/.local/share/gnome-shell/extensions/$uuid" ] || [ -d "/usr/share/gnome-shell/extensions/$uuid" ]; then
+            extension_line "" "$uuid"
+        fi
     done
     gnome-extensions list --disabled | while read -r uuid; do
         if user_installed_extension "$uuid"; then
