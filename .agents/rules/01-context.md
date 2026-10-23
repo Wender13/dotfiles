@@ -24,7 +24,7 @@ Este projeto é uma ferramenta de automação pessoal (Dotfiles e Setup de Ambie
 
 ## Desktop
 - **GNOME (alvo)**: configurações, extensões, temas e apps do GNOME só são aplicados quando o GNOME é detectado (`is_gnome` do `lib.sh`): GNOME Shell instalado e sessão gráfica GNOME (`XDG_CURRENT_DESKTOP` contém `GNOME`: `GNOME` no Fedora, `ubuntu:GNOME` no Ubuntu). Sem sessão gráfica (TTY, SSH), basta o GNOME Shell instalado.
-- **Outros desktops (KDE, Xfce, COSMIC...)**: as etapas do GNOME são puladas com um aviso, sem erro, e o restante (pacotes, Flatpaks, terminal, ambientes de dev, GRUB, Plymouth) roda normalmente. Pulados: os forks das extensões (01), a remoção do bloatware do GNOME e o GNOME Tweaks (04), o Extension Manager (05), os temas e o `sassc` (10) e os módulos 11 e 12 inteiros.
+- **Outros desktops (KDE, Xfce, COSMIC...)**: as etapas do GNOME são puladas com um aviso, sem erro, e o restante (pacotes, Flatpaks, terminal, ambientes de dev, GRUB, Plymouth) roda normalmente. Pulados: os forks das extensões (01), a remoção do bloatware do GNOME e o GNOME Tweaks (04), o Extension Manager (05), os temas e o `sassc` (10) e os módulos 11, 12 e 14 inteiros.
 
 ## Hierarquia e Prioridade de Pacotes
 A instalação de software obedece rigorosamente à seguinte ordem de preferência:

@@ -69,7 +69,7 @@ cp .env.example .env && $EDITOR .env   # preencha todas as chaves
 **No Debian**, se o seu usuário ainda não tem sudo, a primeira execução do `--all` roda só o módulo 00: ele pede a **senha de root** uma vez, instala o `sudo` se faltar e põe você nos grupos `sudo`, `adm` e `systemd-journal`. Faça logout e login e rode `./app.sh --all` de novo. O resto é igual ao Fedora, com as diferenças do Debian tratadas pelos módulos: `contrib` e `non-free` habilitados (o equivalente do RPM Fusion, para codecs e o driver de vídeo da Intel), `tealdeer` no lugar do `tldr`, `splash` na linha de boot para a tela do Plymouth aparecer e o MongoDB do repositório do Debian 12, que roda no 13 (a MongoDB ainda não publica o servidor para o 13).
 
 - A senha do `sudo` é pedida **uma única vez**, no início, e mantida ativa durante toda a execução. Ao terminar, as credenciais em cache são invalidadas (`sudo -k`).
-- Os módulos rodam em ordem (00 a 13), sem limpar a tela, então a saída de cada um fica no histórico do terminal.
+- Os módulos rodam em ordem (00 a 14), sem limpar a tela, então a saída de cada um fica no histórico do terminal.
 - Por padrão o `--all` **não mexe no que já está instalado** (política `keep`): só instala o que falta e lista o que tem versão mais nova. Para ser perguntado, use `./app.sh --all --ask`; para atualizar tudo, `./app.sh --all --update` (caso de uso 5).
 - Rode a partir de um terminal **dentro da sessão do GNOME**: os módulos 11 e 12 aplicam as configurações pela sessão gráfica.
 - A máquina já está configurada em parte? Use `./app.sh --all --only-missing`: nada é removido e o que você já configurou fica (caso de uso 4).
@@ -146,6 +146,7 @@ As perguntas são **uma por grupo** (por exemplo, "04 - programas comuns: 6 item
 | O que | Como a versão é comparada | Como atualiza |
 | --- | --- | --- |
 | Pacotes dnf/apt (04, 06, 09, 10, extensões empacotadas no 11) | versão instalada x repositório | `dnf upgrade` / `apt-get install --only-upgrade` só dos itens listados |
+| 14 | Mantém a tela de login como está, a menos que ela já tenha sido configurada pelo 14 (aí só copia os temas que faltam) |
 | Flatpaks (05) | `flatpak remote-ls --updates` | `flatpak update` dos itens listados |
 | Rust | `rustup check` | `rustup update` |
 | Node.js | versão padrão do fnm x LTS mais recente | instala o LTS e o define como padrão (pacotes globais do npm ficam na versão anterior) |
@@ -242,10 +243,20 @@ As regras são heurísticas: revise sempre o `git diff` antes de commitar.
 - A imagem é aberta pela mesma biblioteca que o GNOME usa para desenhá-la (GdkPixbuf); um arquivo que não seja imagem é recusado com erro antes de qualquer mudança.
 - Só no GNOME: em outro desktop, o módulo avisa e termina sem fazer nada.
 
-### 15. Adicionar uma nova etapa de automação
+### 15. Deixar a tela de login com a cara do desktop (módulo 14)
+```bash
+./app.sh    # e escolha o 14
+```
+- Tela de login (GDM) minimalista: tema escuro, seus ícones (Tela Circle) e cursores (Vimix), relógio com segundos e dia da semana, touchpad e teclado iguais aos do desktop, e **sem o logo** do Fedora embaixo da lista de usuários.
+- Os valores vêm de `style/gnome/dconf/desktop.ini`: depois de reexportar as configurações do GNOME, rode o 14 de novo para levar as mudanças à tela de login.
+- Usa o banco de configurações do próprio GDM (o caminho oficial), que sobrevive às atualizações. Fundo e tema do shell na tela de login **não** são alterados: o GNOME não tem configuração para isso, e a troca do recurso de tema do gnome-shell seria desfeita a cada atualização.
+- Os temas de ícones e cursores do seu `$HOME` são copiados para `/usr/share/icons`, porque a tela de login não lê a sua pasta pessoal. Rode o 10 antes.
+- Aparece na próxima vez que a tela de login abrir (logout ou reinício). Sem GDM (outro gerenciador de login) ou fora do GNOME, o módulo avisa e termina sem fazer nada.
+
+### 16. Adicionar uma nova etapa de automação
 Veja [Desenvolvimento](#desenvolvimento). Basta criar `scripts/NN-nome.sh` com o cabeçalho certo: o menu e o `--all` passam a incluí-lo automaticamente.
 
-### 16. Usar agentes de IA para manter o projeto
+### 17. Usar agentes de IA para manter o projeto
 Antigravity, Claude Code, Cursor e GitHub Copilot já encontram as regras do projeto. Veja [Trabalhando com agentes de IA](#trabalhando-com-agentes-de-ia).
 
 ## Módulos
@@ -269,7 +280,7 @@ Antigravity, Claude Code, Cursor e GitHub Copilot já encontram as regras do pro
 
 No Fedora, o pacote `malcontent` (controle parental) **não** é removido, porque o GNOME Settings depende dele; sai apenas a interface `malcontent-control`.
 
-**Fora do GNOME**, cada módulo pula a sua parte do GNOME e avisa ("GNOME not detected"): o 01 não clona os forks das extensões, o 04 não remove o bloatware do GNOME (só o LibreOffice) nem instala o GNOME Tweaks, o 05 não instala o Extension Manager, o 10 não instala os temas (GRUB e Plymouth continuam), e o 11 e o 12 terminam sem fazer nada. O GNOME é detectado quando o GNOME Shell está instalado e a sessão gráfica é GNOME (`XDG_CURRENT_DESKTOP`); rodando por TTY ou SSH, basta o GNOME Shell estar instalado.
+**Fora do GNOME**, cada módulo pula a sua parte do GNOME e avisa ("GNOME not detected"): o 01 não clona os forks das extensões, o 04 não remove o bloatware do GNOME (só o LibreOffice) nem instala o GNOME Tweaks, o 05 não instala o Extension Manager, o 10 não instala os temas (GRUB e Plymouth continuam), e o 11, o 12 e o 14 terminam sem fazer nada. O GNOME é detectado quando o GNOME Shell está instalado e a sessão gráfica é GNOME (`XDG_CURRENT_DESKTOP`); rodando por TTY ou SSH, basta o GNOME Shell estar instalado.
 
 ## O que o projeto altera no sistema
 Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de uso 4, nada é removido e o que já existe fica como está):
@@ -286,6 +297,7 @@ Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de us
 - **Algo falhou no `--all` e a saída já rolou da tela**: veja o log indicado no resumo final (`~/.local/state/dotfiles/logs/`).
 - **"[ERRO CRITICO] Falha na execucao do script!"**: a mensagem mostra o arquivo, a linha, o comando e o status. Corrija a causa (rede, repositório fora do ar, pacote renomeado) e rode o módulo de novo.
 - **"No match for argument" no dnf**: um pacote foi renomeado ou removido numa nova versão do Fedora. Confira com `dnf repoquery --available <nome>` e atualize a lista no módulo.
+| 14 | `14-loginScreen.sh` | Só no GNOME com GDM: tela de login escura, com seus ícones e cursores, relógio, touchpad e teclado do desktop e sem logo | sim |
 - **"Do not run this as root"**: rode como seu usuário, sem `sudo` na frente.
 - **"sudo: command not found"** ou **"is not in the sudoers file"** (Debian instalado com senha de root): rode `./app.sh`, escolha o módulo `00` e digite a senha de **root** quando o `su` pedir; depois faça logout e login. O `./app.sh --all` faz isso sozinho.
 - **"Debian 13 (trixie) or newer is required"**: o projeto suporta o Debian 13 em diante (a interface gráfica precisa da libadwaita 1.7). Atualize o sistema antes.
@@ -299,6 +311,7 @@ Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de us
 - **"GNOME not detected"**: a sessão gráfica não é o GNOME (ou o GNOME Shell não está instalado), e as etapas do GNOME foram puladas de propósito. Se você está no GNOME, rode de um terminal aberto dentro da sessão.
 - **"No D-Bus session found" nos módulos 11 e 12**: rode a partir de um terminal aberto dentro da sessão do GNOME, não por SSH ou TTY.
 - **"Could not install <extensão> for GNOME Shell N"**: a extensão ainda não tem versão para o seu GNOME (comum logo após uma atualização do Fedora). As configurações são aplicadas mesmo assim; rode o 11 de novo mais tarde.
+- **Tela de login (módulo 14)**: `/etc/dconf/db/gdm.d/95-dotfiles` e o banco compilado `/etc/dconf/db/gdm` no Fedora, ou `/usr/share/gdm/dconf/95-dotfiles` e `/var/lib/gdm3/greeter-dconf-defaults` no Debian e no Ubuntu; cópias dos temas de ícones e cursores em `/usr/share/icons` (Tela-circle, Tela-circle-dark e Vimix-cursors).
 - **Extensões instaladas mas inativas**: faça logout e login (no Wayland o GNOME só carrega extensões novas ao iniciar a sessão).
 
 ## Estrutura do projeto

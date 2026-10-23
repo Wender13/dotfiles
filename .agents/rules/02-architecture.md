@@ -25,7 +25,7 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
   - `detect_distro`: define `PKG_MANAGER` (`apt` ou `dnf`), exige dnf5 no Fedora e Debian 13+ no Debian, e recusa a família RHEL e o Fedora Atomic (Silverblue, Kinoite).
   - `is_apt` / `is_dnf` / `is_debian` (o Debian em si, não o Ubuntu).
   - `admin_group` (`wheel` no Fedora, `sudo` no Debian/Ubuntu) e `has_sudo_access` (o comando existe e a sessão tem o grupo de administrador, ou há credencial do sudo em cache).
-  - `is_gnome`, `gnome_only "etapa"` e `require_gnome`: detecção do GNOME (critério em `01-context.md`). `gnome_only` devolve 1 e avisa o que foi pulado; `require_gnome` encerra com sucesso os módulos que só configuram o GNOME (11 e 12).
+  - `is_gnome`, `gnome_only "etapa"` e `require_gnome`: detecção do GNOME (critério em `01-context.md`). `gnome_only` devolve 1 e avisa o que foi pulado; `require_gnome` encerra com sucesso os módulos que só configuram o GNOME (11, 12 e 14).
   - Modo de configuração (`CONFIG_MODE`: `full` ou `missing`, de `DOTFILES_CONFIG_MODE` ou do `.env`): `only_missing` (verdadeiro no modo completar) e `keep_existing "o quê"` (avisa o que foi mantido). Regras de uso em `03-standards.md`, seção 2.2.
   - `ensure_command <cmd> [pkg_apt] [pkg_dnf]`: instala o pacote se o comando não existir.
   - `clone_if_missing <repo> <destino>`.
@@ -64,6 +64,7 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
 | `11-gnomeSettings.sh` | Só no GNOME (`require_gnome`): extensões, configurações do sistema e das extensões, apps fixados e atalhos | só para extensões empacotadas | - |
 | `12-wallpaperAndAvatar.sh` | Só no GNOME (`require_gnome`): papel de parede (cópia em `~/.local/share/backgrounds`, chaves via `gsettings`) e foto do usuário (recorte 512x512 com GdkPixbuf, entregue ao AccountsService via `busctl`), escolhidos no seletor do `zenity` ou pelo `.env` | só para instalar o `zenity`, se faltar | `WALLPAPER_IMAGE`, `AVATAR_IMAGE` |
 | `13-desktopApps.sh` | Claude Desktop (repositório apt oficial, só Debian/Ubuntu; chave conferida pela impressão digital; grupo `kvm` para o Cowork) e Antigravity IDE (tarball oficial em `~/.local/share/antigravity-ide`, comando `antigravity-ide`, atalho no menu; versão nova lida na página de download e oferecida pela política) | só para o Claude Desktop | - |
+| `14-loginScreen.sh` | Só no GNOME (`require_gnome`) e com GDM: tela de login minimalista pelo banco dconf do GDM (tema escuro, ícones, cursor, relógio, touchpad e teclado tirados de `style/gnome/dconf/desktop.ini`, sem logo), no Fedora em `/etc/dconf/db/gdm.d/95-dotfiles` (`dconf update`) e no Debian/Ubuntu em `/usr/share/gdm/dconf/95-dotfiles` (`generate-config`); copia para `/usr/share/icons` os temas de ícones e cursores do `$HOME` (o mutter só procura cursores ali). Fundo e tema do shell ficam de fora (exigiriam recompilar o recurso de tema do gnome-shell) | sim | - |
 
 ## O Fluxo de Execução
 
@@ -100,6 +101,7 @@ Para máquinas já configuradas em parte. O que cada módulo faz de diferente:
 - 10: não muda `GRUB_TIMEOUT`/`GRUB_TIMEOUT_STYLE` (e não regenera o `grub.cfg` sem mudança), mantém um `GRUB_THEME` que o projeto não instalou e a tela de boot atual.
 - 11: carrega só as chaves que o usuário ainda não definiu (`dconf read` vazio); em `enabled-extensions`, acrescenta as extensões do repositório que não estão ativas nem em `disabled-extensions`; não sobrescreve perfis do Burn My Windows.
 - 12: mantém um papel de parede definido (chave `picture-uri` no dconf) e uma foto existente no AccountsService.
+- 14: sem o arquivo do projeto no banco do GDM, mantém a tela de login como está; com ele, não o regrava e só copia os temas que faltam.
 - 13: mantém um atalho do Antigravity IDE que já existe; com o Claude Desktop já instalado, não mexe nos grupos (o `kvm` só entra junto com uma instalação nova).
 - 00: igual nos dois modos (só adiciona grupos).
 
@@ -107,6 +109,7 @@ Para máquinas já configuradas em parte. O que cada módulo faz de diferente:
 - Todo módulo que usa `sudo` depende do acesso que o 00 garante (no Debian instalado com senha de root, o usuário começa sem sudo). O `--all` checa isso antes de começar.
 - O 13 instala os apps Desktop das CLIs que o 09 instala (`claude` e `agy`); os dois módulos são independentes.
 - O 10 instala o tema GRUB a partir do repositório clonado pelo 01, e o 11 instala a extensão própria (`hide-cursor-drops@wender13.github.io`) a partir do clone do 01; sem o clone, o 11 a pula com aviso.
+- O 14 copia para o sistema os temas de ícones e cursores que o 10 instala no `$HOME` e lê as chaves de `style/gnome/dconf/desktop.ini`: uma reexportação do GNOME também atualiza a tela de login (rode o 14 de novo). Uma cópia diferente da do `$HOME` segue a política de versões.
 - O 05 precisa do `flatpak`, instalado pelo 04 (o `ensure_command` cobre a execução isolada).
 - O `.zshrc` copiado pelo 08 é o do uso diário do dono do repositório. Ele coloca no PATH o que o 09 instala (fnm, pnpm em `$PNPM_HOME/bin`, cargo) e carrega cada ferramenta só se ela existir. Mudanças nele devem partir do `~/.zshrc` em uso, sem caminhos `/home/<usuário>`.
 - O 11 aplica os temas instalados pelo 10 (`Orchis-Dark`, `Tela-circle-dark`, `Vimix-cursors`) e fixa no dock apps instalados pelo 05 e pelo 06. Se mudar um tema no 10, reexporte as configurações.
