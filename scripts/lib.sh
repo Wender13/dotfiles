@@ -162,6 +162,34 @@ ensure_flathub() {
     sudo flatpak remote-modify --enable --no-filter flathub
 }
 
+# GDM's own dconf database (the login screen). Fedora reads keyfiles from /etc/dconf/db/gdm.d
+# (system-db:gdm, compiled by 'dconf update'); Debian and Ubuntu compile the greeter defaults
+# from /usr/share/gdm/dconf with the gdm3 package's generate-config. Prints the keyfile folder,
+# or nothing without GDM; returns 1 for an unknown layout.
+gdm_dconf_dir() {
+    local profile
+    for profile in /etc/dconf/profile/gdm /usr/share/dconf/profile/gdm; do
+        [ -f "$profile" ] || continue
+        if grep -qx 'system-db:gdm' "$profile"; then
+            echo /etc/dconf/db/gdm.d
+        elif [ -x /usr/share/gdm/generate-config ]; then
+            echo /usr/share/gdm/dconf
+        else
+            return 1
+        fi
+        return 0
+    done
+}
+
+# Compiles GDM's database after a keyfile in the folder $1 (from gdm_dconf_dir) changed
+gdm_dconf_update() {
+    if [ "$1" = /etc/dconf/db/gdm.d ]; then
+        sudo dconf update
+    else
+        sudo /usr/share/gdm/generate-config
+    fi
+}
+
 # Python with GdkPixbuf, what GNOME uses to draw wallpapers and user pictures: an image it
 # opens is an image GNOME can show
 ensure_gdkpixbuf() {

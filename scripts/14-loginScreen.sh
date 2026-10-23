@@ -18,27 +18,16 @@ require_gnome
 
 print_header "Configuring the login screen (GDM)"
 
-# Fedora reads /etc/dconf/db/gdm.d (system-db:gdm, compiled by 'dconf update'). Debian and
-# Ubuntu compile the greeter defaults from /usr/share/gdm/dconf with generate-config.
-GDM_PROFILE=""
-for profile in /etc/dconf/profile/gdm /usr/share/dconf/profile/gdm; do
-    if [ -f "$profile" ]; then
-        GDM_PROFILE="$profile"
-        break
-    fi
-done
-if [ -z "$GDM_PROFILE" ]; then
+# GDM's own dconf database (see gdm_dconf_dir in lib.sh)
+if ! GDM_DIR="$(gdm_dconf_dir)"; then
+    echo -e "${C_RED}Unknown GDM dconf layout. Nothing was changed.${C_RESET}" >&2
+    exit 1
+fi
+if [ -z "$GDM_DIR" ]; then
     echo -e "${C_YELLOW}GDM not found (another display manager?). Skipping the login screen.${C_RESET}"
     exit 0
 fi
-if grep -qx 'system-db:gdm' "$GDM_PROFILE"; then
-    GDM_SETTINGS="/etc/dconf/db/gdm.d/95-dotfiles"
-elif [ -x /usr/share/gdm/generate-config ]; then
-    GDM_SETTINGS="/usr/share/gdm/dconf/95-dotfiles"
-else
-    echo -e "${C_RED}Unknown GDM dconf layout in $GDM_PROFILE. Nothing was changed.${C_RESET}" >&2
-    exit 1
-fi
+GDM_SETTINGS="$GDM_DIR/95-dotfiles"
 
 ensure_command dconf dconf-cli dconf
 
@@ -83,11 +72,7 @@ elif only_missing; then
     keep_existing "your login screen settings ($GDM_SETTINGS)"
 else
     sudo install -D -m 0644 "$settings" "$GDM_SETTINGS"
-    if [ "$GDM_SETTINGS" = "/etc/dconf/db/gdm.d/95-dotfiles" ]; then
-        sudo dconf update
-    else
-        sudo /usr/share/gdm/generate-config
-    fi
+    gdm_dconf_update "$GDM_DIR"
     echo "Wrote $GDM_SETTINGS"
 fi
 

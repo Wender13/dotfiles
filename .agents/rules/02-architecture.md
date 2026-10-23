@@ -31,6 +31,7 @@ O repositório é projetado em torno de um padrão CLI Menu -> Módulo.
   - `clone_if_missing <repo> <destino>`.
   - `load_env`: carrega o `.env` da raiz, se existir.
   - `ensure_flathub`: garante o remoto Flathub de sistema, habilitado e sem filtro.
+  - `gdm_dconf_dir` e `gdm_dconf_update <pasta>`: pasta de arquivos de chave do banco dconf do GDM (`/etc/dconf/db/gdm.d` no Fedora, compilado por `dconf update`; `/usr/share/gdm/dconf` no Debian/Ubuntu, compilado pelo `generate-config` do `gdm3`) e a compilação depois de uma mudança. Usadas pelos módulos 14 e 16.
   - `ensure_gdkpixbuf`: Python com GdkPixbuf (o que o GNOME usa para desenhar imagens), usado pelos módulos 12 e 15.
   - Módulos experimentais: `beta_notice <arquivo>` (imprime o aviso do cabeçalho) e `confirm_beta` (chamada pelo módulo beta antes de alterar algo: mostra o aviso e exige `sim`; com `DOTFILES_BETA_CONFIRMED=1`, vindo do `--all --beta`, segue sem perguntar; sem terminal, termina sem mudanças).
   - Política de versões (`UPDATE_POLICY`: `ask`, `update` ou `keep`; `ask` sem terminal vira `keep`):
