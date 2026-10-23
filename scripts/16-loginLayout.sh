@@ -153,60 +153,6 @@ installed_setting() {
     fi
 }
 
-# Numbered menu of "name|description" entries. $1: title, $2: current name, then the entries.
-# Takes a number or a name; Enter keeps the current one. Sets CHOICE.
-choose() {
-    local title=$1 current=$2 entry name mark answer i=1
-    shift 2
-    echo -e "\n${C_BOLD}$title${C_RESET}"
-    for entry in "$@"; do
-        name="${entry%%|*}"
-        mark=""
-        if [ "$name" = "$current" ]; then
-            mark="  (atual)"
-        fi
-        printf '  %d) %-12s %s%s\n' "$i" "$name" "${entry#*|}" "$mark"
-        i=$((i + 1))
-    done
-    while true; do
-        # Ctrl+D counts as Enter (keep the current one)
-        read -r -p "  Numero ou nome [Enter mantem $current]: " answer || answer=""
-        if [ -z "$answer" ]; then
-            CHOICE="$current"
-            return
-        fi
-        if [[ "$answer" =~ ^[0-9]+$ ]] && [ "$answer" -ge 1 ] && [ "$answer" -le $# ]; then
-            entry="${!answer}"
-            CHOICE="${entry%%|*}"
-            return
-        fi
-        for entry in "$@"; do
-            if [ "${entry%%|*}" = "$answer" ]; then
-                CHOICE="$answer"
-                return
-            fi
-        done
-        echo -e "${C_YELLOW}  Opcao invalida.${C_RESET}"
-    done
-}
-
-# A whole number from 0 to 100. $1: question, $2: current value. Sets CHOICE.
-choose_number() {
-    local answer
-    while true; do
-        read -r -p "  $1 (0 a 100) [Enter mantem $2]: " answer || answer=""
-        if [ -z "$answer" ]; then
-            CHOICE="$2"
-            return
-        fi
-        if [[ "$answer" =~ ^[0-9]+$ ]] && [ "$answer" -le 100 ]; then
-            CHOICE="$answer"
-            return
-        fi
-        echo -e "${C_YELLOW}  Use um numero de 0 a 100.${C_RESET}"
-    done
-}
-
 # The choices set so far (an option or .env may hold anything); empty ones are not set yet
 check_choices() {
     local key name
@@ -240,13 +186,13 @@ current_style="$(installed_setting panel-style)"
 current_blur="$(installed_setting panel-blur)"
 current_darkness="$(installed_setting panel-darkness)"
 ask=0
-if [ -t 0 ] && [ "${DOTFILES_BETA_CONFIRMED:-}" != "1" ]; then
+if can_choose; then
     ask=1
 fi
 if [ -z "$LOGIN_LAYOUT" ]; then
     LOGIN_LAYOUT="${current_layout:-panel-right}"
     if [ "$ask" -eq 1 ]; then
-        choose "Layout da tela de login" "$LOGIN_LAYOUT" "${LAYOUTS[@]}"
+        choose_option "Layout da tela de login" "$LOGIN_LAYOUT" "${LAYOUTS[@]}"
         LOGIN_LAYOUT="$CHOICE"
     fi
 fi
@@ -257,7 +203,7 @@ fi
 if [ -z "$LOGIN_PANEL_STYLE" ]; then
     LOGIN_PANEL_STYLE="${current_style:-glass}"
     if [ "$ask" -eq 1 ]; then
-        choose "Estilo do painel" "$LOGIN_PANEL_STYLE" "${STYLES[@]}"
+        choose_option "Estilo do painel" "$LOGIN_PANEL_STYLE" "${STYLES[@]}"
         LOGIN_PANEL_STYLE="$CHOICE"
     fi
 fi
@@ -266,14 +212,14 @@ if [ -z "$LOGIN_PANEL_BLUR" ]; then
     # Only the glass is blurred
     if [ "$ask" -eq 1 ] && [ "$LOGIN_PANEL_STYLE" = "glass" ]; then
         echo ""
-        choose_number "Desfoque do vidro, em pixels" "$LOGIN_PANEL_BLUR"
+        choose_number "Desfoque do vidro, em pixels" "$LOGIN_PANEL_BLUR" 100
         LOGIN_PANEL_BLUR="$CHOICE"
     fi
 fi
 if [ -z "$LOGIN_PANEL_DARKNESS" ]; then
     LOGIN_PANEL_DARKNESS="${current_darkness:-45}"
     if [ "$ask" -eq 1 ]; then
-        choose_number "Escuridao do painel, em %" "$LOGIN_PANEL_DARKNESS"
+        choose_number "Escuridao do painel, em %" "$LOGIN_PANEL_DARKNESS" 100
         LOGIN_PANEL_DARKNESS="$CHOICE"
     fi
 fi

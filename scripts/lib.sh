@@ -278,6 +278,71 @@ confirm_beta() {
     fi
 }
 
+# ─── Choices in a menu ────────────────────────────────────────────────────────
+# Modules with several options (15, 16) take each choice from a command line option, then
+# .env, then a menu, then the installed value (see 03-standards.md, section 5).
+
+# True when a menu may be shown: on a terminal, and not in a run that ./app.sh --all --beta
+# confirmed at its start to go on unattended
+can_choose() {
+    [ -t 0 ] && [ "${DOTFILES_BETA_CONFIRMED:-}" != "1" ]
+}
+
+# Numbered menu of "name|description" entries. $1: title, $2: current name, then the entries.
+# Takes a number or a name; Enter keeps the current one. Sets CHOICE.
+choose_option() {
+    local title=$1 current=$2 entry name mark answer i=1
+    shift 2
+    echo -e "\n${C_BOLD}$title${C_RESET}"
+    for entry in "$@"; do
+        name="${entry%%|*}"
+        mark=""
+        if [ "$name" = "$current" ]; then
+            mark="  (atual)"
+        fi
+        printf '  %d) %-12s %s%s\n' "$i" "$name" "${entry#*|}" "$mark"
+        i=$((i + 1))
+    done
+    while true; do
+        # Ctrl+D counts as Enter (keep the current one)
+        read -r -p "  Numero ou nome [Enter mantem $current]: " answer || answer=""
+        if [ -z "$answer" ]; then
+            CHOICE="$current"
+            return
+        fi
+        if [[ "$answer" =~ ^[0-9]+$ ]] && [ "$answer" -ge 1 ] && [ "$answer" -le $# ]; then
+            entry="${!answer}"
+            CHOICE="${entry%%|*}"
+            return
+        fi
+        for entry in "$@"; do
+            if [ "${entry%%|*}" = "$answer" ]; then
+                CHOICE="$answer"
+                return
+            fi
+        done
+        echo -e "${C_YELLOW}  Opcao invalida.${C_RESET}"
+    done
+}
+
+# A whole number from 0 to $3. $1: question, $2: current value. Enter keeps it. Sets CHOICE.
+choose_number() {
+    local answer
+    while true; do
+        # Ctrl+D counts as Enter (keep the current one)
+        read -r -p "  $1 (0 a $3) [Enter mantem $2]: " answer || answer=""
+        if [ -z "$answer" ]; then
+            CHOICE="$2"
+            return
+        fi
+        if [[ "$answer" =~ ^[0-9]+$ ]] && [ "$answer" -le "$3" ]; then
+            CHOICE="$answer"
+            return
+        fi
+        echo -e "${C_YELLOW}  Use um numero de 0 a $3.${C_RESET}"
+    done
+}
+
 # ─── Update policy ────────────────────────────────────────────────────────────
 # What happens when something is already installed and a newer version exists:
 #   ask    - list "current -> new", warn and ask once per group (default answer: keep)
