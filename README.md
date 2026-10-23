@@ -56,8 +56,8 @@ O `.env` fica na raiz, é ignorado pelo git e guarda os dados pessoais. Nenhum d
 | `UPDATE_POLICY` | todos | O que fazer com o que já está instalado e tem versão nova: `ask`, `update` ou `keep` (ver caso de uso 5) | Menu: `ask`; `--all`: `keep` |
 | `WALLPAPER_IMAGE` | 12 | Imagem do papel de parede (caminho absoluto ou `~/...`) | Abre um seletor de arquivos (Cancelar mantém o atual) |
 | `AVATAR_IMAGE` | 12 | Imagem da foto do usuário (caminho absoluto ou `~/...`) | Abre um seletor de arquivos (Cancelar mantém a atual) |
-| `LOGIN_BLUR` | 15 (beta) | Raio do desfoque do fundo da tela de login, em pixels (0 a 100) | `30` |
-| `LOGIN_DARKNESS` | 15 (beta) | Escurecimento do fundo da tela de login, em % (0 a 90) | `35` |
+| `LOGIN_BLUR` | 15 (beta) | Raio do desfoque do fundo da tela de login, em pixels (0 a 100; 0 deixa nítido) | Menu para escolher; no `--all`, mantém o atual (primeira vez: `30`) |
+| `LOGIN_DARKNESS` | 15 (beta) | Escurecimento do fundo da tela de login, em % (0 a 90) | Menu; no `--all`, o atual (primeira vez: `35`) |
 | `LOGIN_LAYOUT` | 16 (beta) | Layout da tela inicial do login: `panel-right`, `panel-left`, `card-right`, `card-left`, `band-bottom`, `band-top`, `clock-above` ou `clock-below` (caso de uso 16) | Menu para escolher; no `--all`, mantém o atual (primeira vez: `panel-right`) |
 | `LOGIN_PANEL_STYLE` | 16 (beta) | Painel, cartão ou faixa: `glass` (vidro, desfoca o que está atrás) ou `solid` | Menu; no `--all`, o atual (primeira vez: `glass`) |
 | `LOGIN_PANEL_BLUR` | 16 (beta) | Desfoque do vidro, em pixels (0 a 100) | Menu; no `--all`, o atual (primeira vez: `40`) |
@@ -123,7 +123,7 @@ bash scripts/05-flatpakPrograms.sh
 | Papel de parede e foto do usuário | `bash scripts/12-wallpaperAndAvatar.sh` | Cancelar no seletor mantém o atual: dá para trocar só um dos dois |
 | Claude Desktop e Antigravity IDE | `bash scripts/13-desktopApps.sh` | - |
 | Tela de login sem risco (escura, seus ícones, sem logo) | `bash scripts/14-loginScreen.sh` | copia os temas de ícones e cursores para `/usr/share/icons` (rode o 10 antes) |
-| **Beta, com risco**: fundo da tela de login com o papel de parede desfocado | `bash scripts/15-loginBackground.sh` (ou `./app.sh --beta` e o 15) | mostra os riscos e pede `sim` antes; desfaça com `bash scripts/15-loginBackground.sh --restore` (caso de uso 16) |
+| **Beta, com risco**: fundo da tela de login com o papel de parede desfocado | `bash scripts/15-loginBackground.sh` (menu para escolher desfoque e escuridão), `bash scripts/15-loginBackground.sh --blur 0 --darkness 20` ou `./app.sh --beta` e o 15 | mostra os riscos e pede `sim` antes; desfaça com `bash scripts/15-loginBackground.sh --restore` (caso de uso 16) |
 | **Beta**: layout da tela inicial do login (8 opções: painel, cartão, faixa ou só o relógio, de vidro ou sólido) | `bash scripts/16-loginLayout.sh` (menu para escolher), `bash scripts/16-loginLayout.sh --layout card-left --style glass` ou `./app.sh --beta` e o 16 | `--help` lista as opções; desfaça com `bash scripts/16-loginLayout.sh --restore` (caso de uso 16) |
 
 Os módulos experimentais (beta) ficam fora do menu, do `--all` e da interface gráfica, a não ser com `--beta`: `./app.sh --beta` (menu), `./app.sh --all --beta` ou `./app.sh --gui --beta`. Rodados direto pelo `bash`, eles mesmos mostram o aviso e pedem confirmação.
@@ -300,6 +300,7 @@ Ou pelo menu: `./app.sh --beta` e digite `14`, `15` e `16`, um de cada vez. Os t
 ./app.sh --all --beta        # tudo, com os beta (confirmação única no início)
 ./app.sh --gui --beta        # interface gráfica com os beta
 bash scripts/15-loginBackground.sh            # um beta isolado (pede confirmação)
+bash scripts/15-loginBackground.sh --help     # opções do 15
 bash scripts/15-loginBackground.sh --restore  # desfaz o 15
 bash scripts/16-loginLayout.sh --help          # layouts e opções do 16
 bash scripts/16-loginLayout.sh --restore       # desfaz o 16
@@ -312,7 +313,14 @@ O que pode deixar o sistema num estado ruim fica num módulo **experimental**, f
 - **Riscos**: o arquivo pertence ao pacote `gnome-shell` (`gnome-shell-common` no Debian), então `rpm -V` passa a acusá-lo e **cada atualização do gnome-shell desfaz a mudança** (rode o 15 de novo). Um recurso incompatível com a versão do GNOME Shell pode deixar a tela de login sem estilo ou preta. Foi validado em containers (montagem do recurso, cópia de segurança e restauração no Fedora 44 e no Debian 13), mas o desenho da tela de login só se confirma no seu próximo logout. Versões sem `#lockDialogGroup` e o Ubuntu são recusados.
 - **Como desfazer**: `bash scripts/15-loginBackground.sh --restore`, ou `sudo dnf reinstall gnome-shell` (Debian: `sudo apt-get install --reinstall gnome-shell-common`). Se a tela de login não abrir: **Ctrl+Alt+F3**, entre no terminal, rode um desses comandos e depois `sudo systemctl restart gdm`.
 - O papel de parede vem do GNOME (o do estilo escuro); se não for uma imagem, do `WALLPAPER_IMAGE` do `.env`. Trocou o papel de parede? Rode o 15 de novo.
-- **Ajustar o desfoque e a escuridão**: no `.env`, `LOGIN_BLUR` (raio do desfoque gaussiano em pixels, de 0, nítido, a 100, quase um degradê; padrão 30) e `LOGIN_DARKNESS` (escurecimento em %, de 0 a 90; padrão 35). Depois, rode o 15 de novo: ele refaz a imagem a partir do original guardado. Exemplo: `LOGIN_BLUR=15` e `LOGIN_DARKNESS=20` deixam o papel de parede mais reconhecível.
+- **Ajustar o desfoque e a escuridão**: o desfoque é o raio do desfoque gaussiano em pixels, de 0 (nítido) a 100 (quase um degradê); a escuridão vai de 0 a 90%. Como no 16, cada valor vem, nesta ordem, da opção do módulo, do `.env` (`LOGIN_BLUR`, `LOGIN_DARKNESS`), de um menu ou do valor já aplicado (na primeira vez, 30 e 35):
+  ```bash
+  bash scripts/15-loginBackground.sh --help                  # opções
+  bash scripts/15-loginBackground.sh                         # menu: digite o número; Enter mantém o atual
+  bash scripts/15-loginBackground.sh --blur 0                # papel de parede nítido; a escuridão pelo menu
+  bash scripts/15-loginBackground.sh --blur 15 --darkness 20 # tudo, sem menu
+  ```
+  O 15 guarda os valores aplicados em `/var/lib/dotfiles/login-background.conf`, e é deles que vêm os "atuais" do menu. No `./app.sh --all --beta` nada é perguntado; valores inválidos são recusados antes de qualquer pergunta. Rodar de novo refaz a imagem a partir do original guardado. Com o vidro do 16, `--blur 0` deixa o papel de parede nítido e só o painel desfocado.
 
 **Módulo 16 (beta): layout da tela inicial do login.**
 - **Função**: na lista de usuários (a primeira tela, antes de escolher alguém), a hora (com segundos, se o relógio do 14 estiver assim) e a data por extenso ganham destaque num dos oito layouts abaixo, a caixa com foto e nome sai do caminho delas e o relógio do topo some. Ao escolher o usuário, a etapa da senha volta a ser a padrão do GNOME, com o relógio do topo.
@@ -384,7 +392,7 @@ Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de us
 - **Boot**: `/etc/default/grub` (com backup) e `/boot/grub2/grub.cfg`; tema GRUB em `/boot/grub2/themes` (com `-b`); tema Plymouth em `/usr/share/plymouth/themes/deus_ex`, com o initramfs reconstruído; no Debian, `splash` em `GRUB_CMDLINE_LINUX_DEFAULT` e o tema em `/etc/plymouth/plymouthd.conf`.
 - **Configurações do GNOME (dconf do seu usuário)**: as chaves de `style/gnome/dconf/*.ini`. Só as chaves listadas são alteradas; o resto fica como está. O módulo 12 altera também o papel de parede (`org.gnome.desktop.background` e `org.gnome.desktop.screensaver`).
 - **Tela de login (módulo 14)**: `/etc/dconf/db/gdm.d/95-dotfiles` e o banco compilado `/etc/dconf/db/gdm` no Fedora, ou `/usr/share/gdm/dconf/95-dotfiles` e `/var/lib/gdm3/greeter-dconf-defaults` no Debian e no Ubuntu; cópias dos temas de ícones e cursores em `/usr/share/icons` (Tela-circle, Tela-circle-dark e Vimix-cursors).
-- **Fundo da tela de login (módulo 15, beta, só com `--beta` e confirmação)**: substitui `/usr/share/gnome-shell/gnome-shell-theme.gresource`, arquivo do pacote `gnome-shell`, e guarda o original em `/var/lib/dotfiles/gnome-shell-theme.gresource.orig`.
+- **Fundo da tela de login (módulo 15, beta, só com `--beta` e confirmação)**: substitui `/usr/share/gnome-shell/gnome-shell-theme.gresource`, arquivo do pacote `gnome-shell`, e guarda o original em `/var/lib/dotfiles/gnome-shell-theme.gresource.orig` e os valores de desfoque e escuridão aplicados em `/var/lib/dotfiles/login-background.conf`.
 - **Layout da tela de login (módulo 16, beta, só com `--beta` e confirmação)**: a extensão em `/usr/share/gnome-shell/extensions/login-layout@wender13.github.io` e a chave que a ativa no banco do GDM (`/etc/dconf/db/gdm.d/96-dotfiles-login-layout` no Fedora, `/usr/share/gdm/dconf/96-dotfiles-login-layout` no Debian).
 - **No `$HOME`**: `~/Dev`, `~/.oh-my-zsh`, `~/.zshrc` (com backup), `~/.local/share/fonts/NerdFonts`, temas em `~/.themes` e `~/.local/share/icons`, extensões em `~/.local/share/gnome-shell/extensions`, `~/.config/burn-my-windows`, cópias dos papéis de parede em `~/.local/share/backgrounds`, `~/.cargo`, `~/.rustup`, `~/.local/share/fnm`, `~/.local/share/pnpm`, Claude Code em `~/.local/bin/claude` e `~/.local/share/claude`, Antigravity em `~/.local/bin/agy`, Antigravity IDE em `~/.local/share/antigravity-ide` (comando `~/.local/bin/antigravity-ide` e atalho `~/.local/share/applications/antigravity-ide.desktop`), logs em `~/.local/state/dotfiles/logs`, versões registradas em `~/.local/state/dotfiles/versions`, preferência de tema da interface gráfica em `~/.config/dotfiles/gui.ini` e o atalho dela em `~/.local/share/applications/local.dotfiles.Setup.desktop` (só se você pedir), `~/.gitconfig` e `~/.ssh`.
 

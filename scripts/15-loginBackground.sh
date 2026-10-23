@@ -2,10 +2,11 @@
 # MENU_DESC: [BETA] Login screen: blurred wallpaper
 # CATEGORY: BETA
 # STAGE: beta
-# BETA_FUNCTION: Fundo da tela de login (GDM) com o seu papel de parede atual, desfocado e escurecido, no lugar da cor solida (#222226) do GNOME. Intensidade no .env: LOGIN_BLUR (raio do desfoque gaussiano em pixels, 0 a 100, padrao 30) e LOGIN_DARKNESS (escurecimento em %, 0 a 90, padrao 35).
+# BETA_FUNCTION: Fundo da tela de login (GDM) com o seu papel de parede atual, desfocado e escurecido, no lugar da cor solida (#222226) do GNOME: desfoque gaussiano de 0 a 100 pixels (0 deixa nitido) e escurecimento de 0 a 90%.
+# BETA_FUNCTION: Cada valor vem da opcao na linha de comando (--blur, --darkness; --help lista tudo), senao do .env (LOGIN_BLUR, LOGIN_DARKNESS), senao de um menu no terminal (Enter mantem o valor atual; no ./app.sh --all nao pergunta), senao do valor ja aplicado. Padrao na primeira vez: 30 e 35.
 # BETA_DOES: Gera a imagem (1920 px de largura) com GdkPixbuf e Pillow (python3-pillow; python3-pil no Debian, instalado se faltar): desfoque gaussiano e mistura com preto.
 # BETA_DOES: Extrai o recurso de tema do GNOME Shell (/usr/share/gnome-shell/gnome-shell-theme.gresource), acrescenta aos CSS gnome-shell-dark.css e gnome-shell-light.css uma regra #lockDialogGroup com a imagem (background-size: cover), embute a imagem no recurso e o recompila com glib-compile-resources.
-# BETA_DOES: Substitui com sudo esse arquivo, que pertence ao pacote gnome-shell (gnome-shell-common no Debian), e guarda o original em /var/lib/dotfiles/gnome-shell-theme.gresource.orig.
+# BETA_DOES: Substitui com sudo esse arquivo, que pertence ao pacote gnome-shell (gnome-shell-common no Debian), guarda o original em /var/lib/dotfiles/gnome-shell-theme.gresource.orig e os valores usados em /var/lib/dotfiles/login-background.conf.
 # BETA_RISK: Arquivo de pacote alterado: 'rpm -V gnome-shell' (ou o debsums) passa a acusa-lo, e cada atualizacao do gnome-shell volta ao original sem aviso; rode este modulo de novo depois.
 # BETA_RISK: Um recurso incompleto ou um CSS incompativel com a versao instalada do GNOME Shell pode deixar a tela de login sem estilo ou sem abrir (tela preta). O mesmo arquivo e o tema padrao da sua sessao quando nenhum tema de shell (User Themes) esta ativo.
 # BETA_RISK: A montagem do recurso foi validada em containers Fedora 44 e Debian 13, mas o desenho da tela de login com ele nao (o GDM nao roda ali): o primeiro teste e o seu proximo logout.
@@ -19,10 +20,10 @@ source "$SCRIPT_DIR/lib.sh"
 detect_distro
 load_env
 
-require_gnome
-
 RESOURCE="/usr/share/gnome-shell/gnome-shell-theme.gresource"
 BACKUP="/var/lib/dotfiles/gnome-shell-theme.gresource.orig"
+# The blur and darkness last applied: the values the menu offers to keep
+STATE="/var/lib/dotfiles/login-background.conf"
 THEME_PATH="/org/gnome/shell/theme"
 # The image's path inside the resource also marks a resource built by this module
 MARKER="$THEME_PATH/dotfiles-login-background.jpg"
@@ -35,8 +36,59 @@ ours() {
     grep -qxF "$MARKER" <<< "$list"
 }
 
+usage() {
+    cat << EOF
+Usage: bash scripts/15-loginBackground.sh [--blur 0-100] [--darkness 0-90]
+       bash scripts/15-loginBackground.sh --restore | --help
+
+Puts the current wallpaper, blurred and darkened, behind the login screen.
+Each value comes from its option, else from .env (LOGIN_BLUR, LOGIN_DARKNESS), else from a
+menu (on a terminal, except in ./app.sh --all), else it keeps the value last applied
+(first time: blur 30, darkness 35).
+
+  --blur      gaussian blur radius, in pixels (0 to 100; 0 keeps the wallpaper sharp)
+  --darkness  how much darker the wallpaper gets, in percent (0 to 90)
+  --restore   put the original GNOME Shell theme resource back
+EOF
+}
+
+# ─── Options ──────────────────────────────────────────────────────────────────
+RESTORE=0
+FLAG_BLUR=""
+FLAG_DARKNESS=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --restore) RESTORE=1 ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        --blur|--darkness)
+            if [ $# -lt 2 ]; then
+                echo -e "${C_RED}$1 needs a value.${C_RESET}" >&2
+                usage >&2
+                exit 2
+            fi
+            if [ "$1" = "--blur" ]; then
+                FLAG_BLUR="$2"
+            else
+                FLAG_DARKNESS="$2"
+            fi
+            shift
+            ;;
+        *)
+            echo -e "${C_RED}Unknown option: $1${C_RESET}" >&2
+            usage >&2
+            exit 2
+            ;;
+    esac
+    shift
+done
+
+require_gnome
+
 # ─── Undo ─────────────────────────────────────────────────────────────────────
-if [ "${1:-}" = "--restore" ]; then
+if [ "$RESTORE" -eq 1 ]; then
     print_header "Restoring the original GNOME Shell theme resource"
     if ! ours; then
         echo -e "${C_YELLOW}$RESOURCE is not the one built by this module: nothing to restore.${C_RESET}"
@@ -49,9 +101,6 @@ if [ "${1:-}" = "--restore" ]; then
         echo -e "${C_GREEN}Original restored. The login screen is back to the GNOME default the next time it opens.${C_RESET}"
     fi
     exit 0
-elif [ $# -gt 0 ]; then
-    echo -e "${C_RED}Unknown option: $1 (only --restore).${C_RESET}" >&2
-    exit 2
 fi
 
 confirm_beta
@@ -77,17 +126,60 @@ if only_missing && ! ours; then
     exit 0
 fi
 
-# Blur radius in pixels (on the 1920 px image) and darkening in percent, from .env
-LOGIN_BLUR="${LOGIN_BLUR:-30}"
-LOGIN_DARKNESS="${LOGIN_DARKNESS:-35}"
-if ! [[ "$LOGIN_BLUR" =~ ^[0-9]+$ ]] || [ "$LOGIN_BLUR" -gt 100 ]; then
-    echo -e "${C_RED}Invalid LOGIN_BLUR '$LOGIN_BLUR' in .env (a whole number from 0 to 100). Nothing was changed.${C_RESET}" >&2
-    exit 1
+# ─── Blur and darkness ────────────────────────────────────────────────────────
+# Blur radius in pixels (on the 1920 px image), from 0 to 100, and darkening in percent,
+# from 0 to 90 (an option or .env may hold anything; empty ones are not set yet)
+check_values() {
+    if [ -n "$LOGIN_BLUR" ] && { ! [[ "$LOGIN_BLUR" =~ ^[0-9]+$ ]] || [ "$LOGIN_BLUR" -gt 100 ]; }; then
+        echo -e "${C_RED}Invalid blur '$LOGIN_BLUR' (a whole number from 0 to 100). Nothing was changed.${C_RESET}" >&2
+        exit 1
+    fi
+    if [ -n "$LOGIN_DARKNESS" ] && { ! [[ "$LOGIN_DARKNESS" =~ ^[0-9]+$ ]] || [ "$LOGIN_DARKNESS" -gt 90 ]; }; then
+        echo -e "${C_RED}Invalid darkness '$LOGIN_DARKNESS' (a whole number from 0 to 90). Nothing was changed.${C_RESET}" >&2
+        exit 1
+    fi
+}
+
+# Value last applied (from $STATE), or nothing
+applied_value() {
+    if [ -f "$STATE" ]; then
+        sed -n "s/^$1=//p" "$STATE"
+    fi
+}
+
+# Option, then .env; what is still missing is asked in a menu (see can_choose in lib.sh)
+# or keeps the value last applied. Wrong values are refused before any question.
+LOGIN_BLUR="${FLAG_BLUR:-${LOGIN_BLUR:-}}"
+LOGIN_DARKNESS="${FLAG_DARKNESS:-${LOGIN_DARKNESS:-}}"
+check_values
+applied_blur="$(applied_value blur)"
+applied_darkness="$(applied_value darkness)"
+if [ -z "$LOGIN_BLUR" ]; then
+    LOGIN_BLUR="${applied_blur:-30}"
+    if can_choose; then
+        echo ""
+        choose_number "Desfoque do papel de parede, em pixels (0 deixa nitido)" "$LOGIN_BLUR" 100
+        LOGIN_BLUR="$CHOICE"
+    fi
 fi
-if ! [[ "$LOGIN_DARKNESS" =~ ^[0-9]+$ ]] || [ "$LOGIN_DARKNESS" -gt 90 ]; then
-    echo -e "${C_RED}Invalid LOGIN_DARKNESS '$LOGIN_DARKNESS' in .env (a whole number from 0 to 90). Nothing was changed.${C_RESET}" >&2
-    exit 1
+if [ -z "$LOGIN_DARKNESS" ]; then
+    LOGIN_DARKNESS="${applied_darkness:-35}"
+    if can_choose; then
+        choose_number "Escuridao do papel de parede, em %" "$LOGIN_DARKNESS" 90
+        LOGIN_DARKNESS="$CHOICE"
+    fi
 fi
+check_values
+
+# Records the values in use, so the next run offers them as the current ones
+save_values() {
+    local values="$work/values"
+    printf 'blur=%s\ndarkness=%s\n' "$LOGIN_BLUR" "$LOGIN_DARKNESS" > "$values"
+    if ! cmp -s "$values" "$STATE"; then
+        sudo install -d -m 0755 "$(dirname "$STATE")"
+        sudo install -m 0644 "$values" "$STATE"
+    fi
+}
 
 ensure_command gresource libglib2.0-bin glib2-devel
 ensure_command glib-compile-resources libglib2.0-dev-bin glib2-devel
@@ -228,6 +320,7 @@ if [ "$built" != "$expected" ] || ! grep -qF "resource://$MARKER" "$work/check.c
 fi
 
 if cmp -s "$work/theme.gresource" "$RESOURCE"; then
+    save_values
     echo -e "${C_YELLOW}The login screen already has this background.${C_RESET}"
     exit 0
 fi
@@ -242,6 +335,7 @@ fi
 # Copied next to it and renamed, so the file is never seen half written
 sudo install -m 0644 "$work/theme.gresource" "$RESOURCE.dotfiles-new"
 sudo mv -f "$RESOURCE.dotfiles-new" "$RESOURCE"
+save_values
 
 echo -e "${C_GREEN}Login screen background installed. It shows up the next time the login screen opens (log out or restart).${C_RESET}"
 echo -e "${C_YELLOW}To undo: bash scripts/15-loginBackground.sh --restore${C_RESET}"
