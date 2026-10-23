@@ -200,7 +200,7 @@ sudo grub2-mkconfig -o /boot/grub2/grub.cfg
 O menu do GRUB continua acessível: no Fedora, ele reaparece automaticamente após uma falha de boot.
 
 ### 11. Instalar os aplicativos de desktop (módulo 05)
-Via Flathub (atualização automática): Obsidian, Postman, Insomnia, OnlyOffice, Discord, DBeaver, MongoDB Compass, LocalSend, Extension Manager (só no GNOME), Prism Launcher, Zotero, Podman Desktop e Inkscape.
+Via Flathub (atualização automática): Obsidian, Postman, Insomnia, OnlyOffice, Discord, DBeaver, MongoDB Compass, LocalSend, Extension Manager (só no GNOME), Prism Launcher, Zotero, Podman Desktop, Inkscape, Lunacy, Flatseal e Ignition.
 
 ### 12. Restaurar extensões, configurações e atalhos do GNOME (módulo 11)
 Deixa o GNOME igual ao da máquina de onde as configurações foram capturadas, sem abrir o Settings nem o Extension Manager:

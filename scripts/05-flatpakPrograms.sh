@@ -25,6 +25,9 @@ FLATPAK_APPS=(
     org.zotero.Zotero
     io.podman_desktop.PodmanDesktop
     org.inkscape.Inkscape
+    com.icons8.Lunacy
+    com.github.tchx84.Flatseal
+    io.github.flattool.Ignition
 )
 if gnome_only "Extension Manager"; then
     FLATPAK_APPS+=(com.mattjakeman.ExtensionManager)

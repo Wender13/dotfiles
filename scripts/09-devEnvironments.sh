@@ -23,8 +23,10 @@ if is_apt; then
     PACKAGES=(libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev
         libayatana-appindicator3-dev librsvg2-dev)
 elif is_dnf; then
+    # Tray icons: libappindicator is the one in Tauri's guide, libayatana the one the tray
+    # crate loads first (the apt branch only has the Ayatana one)
     PACKAGES=(webkit2gtk4.1-devel openssl-devel curl wget file libappindicator-gtk3-devel
-        librsvg2-devel libxdo-devel @c-development)
+        libayatana-appindicator-gtk3-devel librsvg2-devel libxdo-devel @c-development)
 fi
 install_missing_packages "${PACKAGES[@]}"
 OFFER+=("${PACKAGES[@]}")
