@@ -120,6 +120,7 @@ bash scripts/05-flatpakPrograms.sh
 | Claude Desktop e Antigravity IDE | `bash scripts/13-desktopApps.sh` | - |
 | Tela de login sem risco (escura, seus ícones, sem logo) | `bash scripts/14-loginScreen.sh` | copia os temas de ícones e cursores para `/usr/share/icons` (rode o 10 antes) |
 | **Beta, com risco**: fundo da tela de login com o papel de parede desfocado | `bash scripts/15-loginBackground.sh` (ou `./app.sh --beta` e o 15) | mostra os riscos e pede `sim` antes; desfaça com `bash scripts/15-loginBackground.sh --restore` (caso de uso 16) |
+| **Beta**: tela inicial do login em duas colunas (usuário à esquerda, hora e data à direita) | `bash scripts/16-loginLayout.sh` (ou `./app.sh --beta` e o 16) | instala uma extensão só da tela de login; desfaça com `bash scripts/16-loginLayout.sh --restore` (caso de uso 16) |
 
 Os módulos experimentais (beta) ficam fora do menu, do `--all` e da interface gráfica, a não ser com `--beta`: `./app.sh --beta` (menu), `./app.sh --all --beta` ou `./app.sh --gui --beta`. Rodados direto pelo `bash`, eles mesmos mostram o aviso e pedem confirmação.
 
@@ -154,6 +155,7 @@ O que muda em cada módulo:
 | 13 | Instala o que falta; mantém um atalho do Antigravity IDE que já existe e, com o Claude Desktop já instalado, os seus grupos (o `kvm` só entra junto com uma instalação nova) |
 | 14 | Mantém a tela de login como está, a menos que ela já tenha sido configurada pelo 14 (aí só copia os temas que faltam) |
 | 15 (beta) | Mantém o fundo atual da tela de login, a menos que ele já seja o do 15 |
+| 16 (beta) | Mantém o layout atual da tela de login, a menos que a extensão do 16 já esteja ativa |
 | 00, 02, 03, 05, 09 | Iguais: só instalam ou adicionam o que falta (o 00 só acrescenta grupos) (o 03 só lista as atualizações, pela política `keep`) |
 
 Cada item mantido aparece na saída como "Only-missing mode: keeping ...". Os Flatpaks e pacotes da lista que você desinstalou de propósito voltam a ser instalados (não há como distinguir "nunca instalado" de "removido"); para evitar, rode pelo menu só os módulos que quiser.
@@ -280,12 +282,13 @@ As regras são heurísticas: revise sempre o `git diff` antes de commitar.
 - Os temas de ícones e cursores do seu `$HOME` são copiados para `/usr/share/icons`, porque a tela de login não lê a sua pasta pessoal. Rode o 10 antes.
 - Aparece na próxima vez que a tela de login abrir (logout ou reinício). Sem GDM (outro gerenciador de login) ou fora do GNOME, o módulo avisa e termina sem fazer nada.
 
-**Só a tela de login, completa (14 e o beta 15).** Para aplicar só os dois módulos do GDM, sem rodar o resto:
+**Só a tela de login, completa (14 e os beta 15 e 16).** Para aplicar só os módulos do GDM, sem rodar o resto:
 ```bash
 bash scripts/14-loginScreen.sh        # sem risco: escura, seus ícones, sem logo (pede o sudo)
 bash scripts/15-loginBackground.sh    # beta: fundo com o papel de parede desfocado (mostra os riscos e pede 'sim')
+bash scripts/16-loginLayout.sh        # beta: usuário à esquerda, hora e data à direita (mostra os riscos e pede 'sim')
 ```
-Ou pelo menu: `./app.sh --beta`, digite `14`, depois `15`. Faça logout para ver o resultado. Para desfazer só o fundo: `bash scripts/15-loginBackground.sh --restore` (caso de uso 16).
+Ou pelo menu: `./app.sh --beta` e digite `14`, `15` e `16`, um de cada vez. Os três são independentes: rode só os que quiser. Faça logout para ver o resultado. Para desfazer um beta: `bash scripts/15-loginBackground.sh --restore` ou `bash scripts/16-loginLayout.sh --restore` (caso de uso 16).
 
 ### 16. Testar funcionalidades experimentais (beta)
 ```bash
@@ -294,6 +297,7 @@ Ou pelo menu: `./app.sh --beta`, digite `14`, depois `15`. Faça logout para ver
 ./app.sh --gui --beta        # interface gráfica com os beta
 bash scripts/15-loginBackground.sh            # um beta isolado (pede confirmação)
 bash scripts/15-loginBackground.sh --restore  # desfaz o 15
+bash scripts/16-loginLayout.sh --restore       # desfaz o 16
 ```
 O que pode deixar o sistema num estado ruim fica num módulo **experimental**, fora do fluxo normal. Antes de mudar qualquer coisa, ele mostra a **função**, **o que faz** (arquivos e comandos), os **riscos** e **como desfazer**, e só segue se você digitar `sim`. No `--all --beta`, esse aviso aparece no início para todos os módulos beta, com uma única confirmação, para o resto da execução não parar no meio.
 
@@ -304,6 +308,13 @@ O que pode deixar o sistema num estado ruim fica num módulo **experimental**, f
 - **Como desfazer**: `bash scripts/15-loginBackground.sh --restore`, ou `sudo dnf reinstall gnome-shell` (Debian: `sudo apt-get install --reinstall gnome-shell-common`). Se a tela de login não abrir: **Ctrl+Alt+F3**, entre no terminal, rode um desses comandos e depois `sudo systemctl restart gdm`.
 - O papel de parede vem do GNOME (o do estilo escuro); se não for uma imagem, do `WALLPAPER_IMAGE` do `.env`. Trocou o papel de parede? Rode o 15 de novo.
 - **Ajustar o desfoque e a escuridão**: no `.env`, `LOGIN_BLUR` (raio do desfoque gaussiano em pixels, de 0, nítido, a 100, quase um degradê; padrão 30) e `LOGIN_DARKNESS` (escurecimento em %, de 0 a 90; padrão 35). Depois, rode o 15 de novo: ele refaz a imagem a partir do original guardado. Exemplo: `LOGIN_BLUR=15` e `LOGIN_DARKNESS=20` deixam o papel de parede mais reconhecível.
+
+**Módulo 16 (beta): tela inicial do login em duas colunas.**
+- **Função**: na lista de usuários (a primeira tela, antes de escolher alguém), a caixa com foto e nome vai para a metade esquerda e uma caixa sólida com a hora (com segundos, se o relógio do 14 estiver assim) e a data por extenso ocupa a metade direita; o relógio do topo some. Ao escolher o usuário, a etapa da senha volta a ser a padrão do GNOME, com o relógio do topo.
+- **O que faz**: o CSS do GNOME não cria elementos e o layout da tela de login vem do JavaScript do GNOME Shell. Por isso o módulo instala uma extensão própria (`style/gnome/gdm-extension/`) que roda **só na tela de login** (`"session-modes": ["gdm"]`), em `/usr/share/gnome-shell/extensions`, e a ativa no banco do GDM. Nenhum arquivo de pacote é alterado.
+- **Riscos**: a extensão usa objetos internos do diálogo de login, que podem mudar numa versão nova do GNOME; se sumirem, ela não faz nada, e um erro nela faz o GNOME desligá-la sem impedir o login. Ela declara o GNOME 48 a 50, e o módulo recusa outras versões. Em monitor estreito (retrato) as colunas podem se sobrepor; com vários monitores, vale o principal.
+- **Validação**: o GNOME Shell 50 rodou de verdade em modo de tela de login num container, com os módulos 14 e 16 aplicados pelo banco do GDM, e as capturas mostraram a lista de usuários e a etapa da senha como descrito; no GNOME 48 (Debian 13) a parte visual foi conferida só pelo código-fonte.
+- **Como desfazer**: `bash scripts/16-loginLayout.sh --restore`. Se a tela de login não abrir: **Ctrl+Alt+F3**, entre no terminal, rode esse comando e depois `sudo systemctl restart gdm`.
 
 ### 17. Adicionar uma nova etapa de automação
 Veja [Desenvolvimento](#desenvolvimento). Basta criar `scripts/NN-nome.sh` com o cabeçalho certo: o menu e o `--all` passam a incluí-lo automaticamente.
@@ -331,6 +342,7 @@ Antigravity, Claude Code, Cursor e GitHub Copilot já encontram as regras do pro
 | 13 | `13-desktopApps.sh` | Claude Desktop (só Debian e Ubuntu, pelo repositório apt oficial; no Fedora não há pacote oficial e o módulo avisa) e Antigravity IDE (tarball oficial em `~/.local/share/antigravity-ide`, com atalho no menu e comando `antigravity-ide`) | só para o Claude Desktop |
 | 14 | `14-loginScreen.sh` | Só no GNOME com GDM: tela de login escura, com seus ícones e cursores, relógio, touchpad e teclado do desktop e sem logo | sim |
 | 15 | `15-loginBackground.sh` | **Beta** (só com `--beta`; mostra os riscos e pede confirmação): fundo da tela de login com o papel de parede desfocado, recompilando o recurso de tema do GNOME Shell; `--restore` desfaz (caso de uso 16) | sim |
+| 16 | `16-loginLayout.sh` | **Beta** (só com `--beta`; mostra os riscos e pede confirmação): tela inicial do login em duas colunas, com o usuário à esquerda e uma caixa sólida com hora e data à direita, por uma extensão que só roda no GDM; `--restore` desfaz (caso de uso 16) | sim |
 
 No Fedora, o pacote `malcontent` (controle parental) **não** é removido, porque o GNOME Settings depende dele; sai apenas a interface `malcontent-control`.
 
@@ -346,6 +358,7 @@ Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de us
 - **Configurações do GNOME (dconf do seu usuário)**: as chaves de `style/gnome/dconf/*.ini`. Só as chaves listadas são alteradas; o resto fica como está. O módulo 12 altera também o papel de parede (`org.gnome.desktop.background` e `org.gnome.desktop.screensaver`).
 - **Tela de login (módulo 14)**: `/etc/dconf/db/gdm.d/95-dotfiles` e o banco compilado `/etc/dconf/db/gdm` no Fedora, ou `/usr/share/gdm/dconf/95-dotfiles` e `/var/lib/gdm3/greeter-dconf-defaults` no Debian e no Ubuntu; cópias dos temas de ícones e cursores em `/usr/share/icons` (Tela-circle, Tela-circle-dark e Vimix-cursors).
 - **Fundo da tela de login (módulo 15, beta, só com `--beta` e confirmação)**: substitui `/usr/share/gnome-shell/gnome-shell-theme.gresource`, arquivo do pacote `gnome-shell`, e guarda o original em `/var/lib/dotfiles/gnome-shell-theme.gresource.orig`.
+- **Layout da tela de login (módulo 16, beta, só com `--beta` e confirmação)**: a extensão em `/usr/share/gnome-shell/extensions/login-layout@wender13.github.io` e a chave que a ativa no banco do GDM (`/etc/dconf/db/gdm.d/96-dotfiles-login-layout` no Fedora, `/usr/share/gdm/dconf/96-dotfiles-login-layout` no Debian).
 - **No `$HOME`**: `~/Dev`, `~/.oh-my-zsh`, `~/.zshrc` (com backup), `~/.local/share/fonts/NerdFonts`, temas em `~/.themes` e `~/.local/share/icons`, extensões em `~/.local/share/gnome-shell/extensions`, `~/.config/burn-my-windows`, cópias dos papéis de parede em `~/.local/share/backgrounds`, `~/.cargo`, `~/.rustup`, `~/.local/share/fnm`, `~/.local/share/pnpm`, Claude Code em `~/.local/bin/claude` e `~/.local/share/claude`, Antigravity em `~/.local/bin/agy`, Antigravity IDE em `~/.local/share/antigravity-ide` (comando `~/.local/bin/antigravity-ide` e atalho `~/.local/share/applications/antigravity-ide.desktop`), logs em `~/.local/state/dotfiles/logs`, versões registradas em `~/.local/state/dotfiles/versions`, preferência de tema da interface gráfica em `~/.config/dotfiles/gui.ini` e o atalho dela em `~/.local/share/applications/local.dotfiles.Setup.desktop` (só se você pedir), `~/.gitconfig` e `~/.ssh`.
 
 ## Solução de problemas
@@ -381,6 +394,7 @@ Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de us
 │   ├── dconf/*.ini         # Configurações do sistema, extensões, dock e atalhos (módulo 11)
 │   ├── extensions.txt      # Extensões a instalar (UUID e pacote Fedora, se houver)
 │   ├── burn-my-windows/    # Perfis de efeito da extensão Burn My Windows
+│   ├── gdm-extension/      # Extensão da tela de login (layout do módulo 16, beta)
 │   └── bin/                # export-gnome-settings.sh (captura das configurações)
 ├── .env.example            # Modelo do .env (o .env real é ignorado pelo git)
 ├── .agents/rules/          # Regras para agentes de IA (fonte de verdade)

@@ -1,0 +1,21 @@
+/* The solid box with the time and date on the right half of the login screen */
+.dotfiles-login-clock {
+  background-color: #1e1e22;
+  border-radius: 28px;
+  padding: 40px 64px;
+  spacing: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+}
+
+.dotfiles-login-clock-time {
+  color: #ffffff;
+  font-size: 64pt;
+  font-weight: 300;
+  /* Same-width digits, so the box does not jitter as the seconds change */
+  font-feature-settings: "tnum";
+}
+
+.dotfiles-login-clock-date {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 15pt;
+}

@@ -1,0 +1,14 @@
+{
+  "uuid": "login-layout@wender13.github.io",
+  "name": "Login Layout (dotfiles)",
+  "description": "Login screen only: the user list on the left half and a solid box with the time and date on the right half, with the panel clock hidden while the list shows. The password step is left as GNOME draws it. Installed by scripts/16-loginLayout.sh.",
+  "shell-version": [
+    "48",
+    "49",
+    "50"
+  ],
+  "session-modes": [
+    "gdm"
+  ],
+  "version": 1
+}
