@@ -2,7 +2,8 @@
 # MENU_DESC: [BETA] Login screen: blurred wallpaper
 # CATEGORY: BETA
 # STAGE: beta
-# BETA_FUNCTION: Fundo da tela de login (GDM) com o seu papel de parede atual, desfocado e escurecido, no lugar da cor solida (#222226) do GNOME.
+# BETA_FUNCTION: Fundo da tela de login (GDM) com o seu papel de parede atual, desfocado e escurecido, no lugar da cor solida (#222226) do GNOME. Intensidade no .env: LOGIN_BLUR (raio do desfoque gaussiano em pixels, 0 a 100, padrao 30) e LOGIN_DARKNESS (escurecimento em %, 0 a 90, padrao 35).
+# BETA_DOES: Gera a imagem (1920 px de largura) com GdkPixbuf e Pillow (python3-pillow; python3-pil no Debian, instalado se faltar): desfoque gaussiano e mistura com preto.
 # BETA_DOES: Extrai o recurso de tema do GNOME Shell (/usr/share/gnome-shell/gnome-shell-theme.gresource), acrescenta aos CSS gnome-shell-dark.css e gnome-shell-light.css uma regra #lockDialogGroup com a imagem (background-size: cover), embute a imagem no recurso e o recompila com glib-compile-resources.
 # BETA_DOES: Substitui com sudo esse arquivo, que pertence ao pacote gnome-shell (gnome-shell-common no Debian), e guarda o original em /var/lib/dotfiles/gnome-shell-theme.gresource.orig.
 # BETA_RISK: Arquivo de pacote alterado: 'rpm -V gnome-shell' (ou o debsums) passa a acusa-lo, e cada atualizacao do gnome-shell volta ao original sem aviso; rode este modulo de novo depois.
@@ -76,9 +77,29 @@ if only_missing && ! ours; then
     exit 0
 fi
 
+# Blur radius in pixels (on the 1920 px image) and darkening in percent, from .env
+LOGIN_BLUR="${LOGIN_BLUR:-30}"
+LOGIN_DARKNESS="${LOGIN_DARKNESS:-35}"
+if ! [[ "$LOGIN_BLUR" =~ ^[0-9]+$ ]] || [ "$LOGIN_BLUR" -gt 100 ]; then
+    echo -e "${C_RED}Invalid LOGIN_BLUR '$LOGIN_BLUR' in .env (a whole number from 0 to 100). Nothing was changed.${C_RESET}" >&2
+    exit 1
+fi
+if ! [[ "$LOGIN_DARKNESS" =~ ^[0-9]+$ ]] || [ "$LOGIN_DARKNESS" -gt 90 ]; then
+    echo -e "${C_RED}Invalid LOGIN_DARKNESS '$LOGIN_DARKNESS' in .env (a whole number from 0 to 90). Nothing was changed.${C_RESET}" >&2
+    exit 1
+fi
+
 ensure_command gresource libglib2.0-bin glib2-devel
 ensure_command glib-compile-resources libglib2.0-dev-bin glib2-devel
 ensure_gdkpixbuf
+# Pillow does the gaussian blur (GdkPixbuf only scales)
+if ! python3 -c 'import PIL' 2> /dev/null; then
+    if is_dnf; then
+        install_missing_packages python3-pillow
+    else
+        install_missing_packages python3-pil
+    fi
+fi
 
 # The resource is rebuilt from the package's original: the installed file when it is still
 # the original, the saved copy when it is already ours
@@ -134,37 +155,40 @@ if [[ "$wallpaper" == *.xml ]]; then
     echo -e "${C_RED}The wallpaper is a slideshow (.xml), not an image. Choose an image with 12-wallpaperAndAvatar.sh.${C_RESET}" >&2
     exit 1
 fi
-echo "Wallpaper: $wallpaper"
+echo "Wallpaper: $wallpaper (blur $LOGIN_BLUR, darkness $LOGIN_DARKNESS%)"
 
-python3 - "$wallpaper" "$work/src$MARKER" << 'EOF'
+python3 - "$wallpaper" "$work/src$MARKER" "$LOGIN_BLUR" "$LOGIN_DARKNESS" << 'EOF'
 import sys
 
 import gi
 
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gio, GLib
+from PIL import Image, ImageFilter
 
 source, target = sys.argv[1], sys.argv[2]
+blur, darkness = int(sys.argv[3]), int(sys.argv[4])
 path = Gio.File.new_for_uri(source).get_path() if "://" in source else source
 try:
     image = GdkPixbuf.Pixbuf.new_from_file(path).apply_embedded_orientation()
 except GLib.Error as error:
     sys.exit(f"Could not open the wallpaper {path}: {error.message}")
 
-# 1920 pixels wide is plenty: the login screen scales it to cover the monitor
+# Opened by GdkPixbuf, as GNOME does; 1920 pixels wide is plenty, since the login screen
+# scales it to cover the monitor
 width = 1920
 height = max(1, round(image.get_height() * width / image.get_width()))
-def scaled(pixbuf, w, interp):
-    return pixbuf.scale_simple(w, max(1, round(height * w / width)), interp)
-
-# Blur: shrink to a few dozen pixels, then grow back in two smooth steps
-blurred = scaled(scaled(scaled(image, 48, GdkPixbuf.InterpType.HYPER), 480,
-                        GdkPixbuf.InterpType.BILINEAR), width, GdkPixbuf.InterpType.BILINEAR)
-# Darken: the blurred image over black at 65% opacity
-result = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, False, 8, width, height)
-result.fill(0x000000FF)
-blurred.composite(result, 0, 0, width, height, 0, 0, 1, 1, GdkPixbuf.InterpType.BILINEAR, 166)
-result.savev(target, "jpeg", ["quality"], ["90"])
+image = image.scale_simple(width, height, GdkPixbuf.InterpType.HYPER)
+mode = "RGBA" if image.get_has_alpha() else "RGB"
+picture = Image.frombytes(mode, (width, height), image.get_pixels(), "raw", mode,
+                          image.get_rowstride()).convert("RGB")
+# A real gaussian blur (shrinking and growing the image back leaves blocks), then the
+# picture mixed with black
+if blur:
+    picture = picture.filter(ImageFilter.GaussianBlur(blur))
+if darkness:
+    picture = Image.blend(picture, Image.new("RGB", picture.size), darkness / 100)
+picture.save(target, "JPEG", quality=92)
 EOF
 
 # ─── Rebuilt resource ─────────────────────────────────────────────────────────

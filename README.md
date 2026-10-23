@@ -56,6 +56,8 @@ O `.env` fica na raiz, é ignorado pelo git e guarda os dados pessoais. Nenhum d
 | `UPDATE_POLICY` | todos | O que fazer com o que já está instalado e tem versão nova: `ask`, `update` ou `keep` (ver caso de uso 5) | Menu: `ask`; `--all`: `keep` |
 | `WALLPAPER_IMAGE` | 12 | Imagem do papel de parede (caminho absoluto ou `~/...`) | Abre um seletor de arquivos (Cancelar mantém o atual) |
 | `AVATAR_IMAGE` | 12 | Imagem da foto do usuário (caminho absoluto ou `~/...`) | Abre um seletor de arquivos (Cancelar mantém a atual) |
+| `LOGIN_BLUR` | 15 (beta) | Raio do desfoque do fundo da tela de login, em pixels (0 a 100) | `30` |
+| `LOGIN_DARKNESS` | 15 (beta) | Escurecimento do fundo da tela de login, em % (0 a 90) | `35` |
 
 No Fedora, inclua `-b` em `GRUB_THEME_ARGS`: o `/boot` é uma partição separada, e o tema precisa ficar em `/boot/grub2/themes`.
 
@@ -297,10 +299,11 @@ O que pode deixar o sistema num estado ruim fica num módulo **experimental**, f
 
 **Módulo 15 (beta): fundo da tela de login com o papel de parede desfocado.**
 - **Função**: troca a cor sólida da tela de login (GDM) pelo seu papel de parede atual, desfocado e escurecido. Combina com a tela minimalista do 14.
-- **O que faz**: o GNOME não tem configuração para o fundo da tela de login; ele vem do CSS embutido em `/usr/share/gnome-shell/gnome-shell-theme.gresource` (regra `#lockDialogGroup`). O módulo extrai esse recurso, acrescenta aos CSS escuro e claro uma regra com a imagem, embute a imagem (1920 px, desfocada e escurecida com GdkPixbuf), recompila com `glib-compile-resources`, confere o resultado e substitui o arquivo com sudo, guardando o original em `/var/lib/dotfiles/gnome-shell-theme.gresource.orig`.
+- **O que faz**: o GNOME não tem configuração para o fundo da tela de login; ele vem do CSS embutido em `/usr/share/gnome-shell/gnome-shell-theme.gresource` (regra `#lockDialogGroup`). O módulo extrai esse recurso, acrescenta aos CSS escuro e claro uma regra com a imagem, embute a imagem (1920 px, aberta com GdkPixbuf, com desfoque gaussiano e escurecimento feitos pelo Pillow), recompila com `glib-compile-resources`, confere o resultado e substitui o arquivo com sudo, guardando o original em `/var/lib/dotfiles/gnome-shell-theme.gresource.orig`.
 - **Riscos**: o arquivo pertence ao pacote `gnome-shell` (`gnome-shell-common` no Debian), então `rpm -V` passa a acusá-lo e **cada atualização do gnome-shell desfaz a mudança** (rode o 15 de novo). Um recurso incompatível com a versão do GNOME Shell pode deixar a tela de login sem estilo ou preta. Foi validado em containers (montagem do recurso, cópia de segurança e restauração no Fedora 44 e no Debian 13), mas o desenho da tela de login só se confirma no seu próximo logout. Versões sem `#lockDialogGroup` e o Ubuntu são recusados.
 - **Como desfazer**: `bash scripts/15-loginBackground.sh --restore`, ou `sudo dnf reinstall gnome-shell` (Debian: `sudo apt-get install --reinstall gnome-shell-common`). Se a tela de login não abrir: **Ctrl+Alt+F3**, entre no terminal, rode um desses comandos e depois `sudo systemctl restart gdm`.
 - O papel de parede vem do GNOME (o do estilo escuro); se não for uma imagem, do `WALLPAPER_IMAGE` do `.env`. Trocou o papel de parede? Rode o 15 de novo.
+- **Ajustar o desfoque e a escuridão**: no `.env`, `LOGIN_BLUR` (raio do desfoque gaussiano em pixels, de 0, nítido, a 100, quase um degradê; padrão 30) e `LOGIN_DARKNESS` (escurecimento em %, de 0 a 90; padrão 35). Depois, rode o 15 de novo: ele refaz a imagem a partir do original guardado. Exemplo: `LOGIN_BLUR=15` e `LOGIN_DARKNESS=20` deixam o papel de parede mais reconhecível.
 
 ### 17. Adicionar uma nova etapa de automação
 Veja [Desenvolvimento](#desenvolvimento). Basta criar `scripts/NN-nome.sh` com o cabeçalho certo: o menu e o `--all` passam a incluí-lo automaticamente.
