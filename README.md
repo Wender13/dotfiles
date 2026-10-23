@@ -117,6 +117,9 @@ bash scripts/05-flatpakPrograms.sh
 | Papel de parede e foto do usuário | `bash scripts/12-wallpaperAndAvatar.sh` | Cancelar no seletor mantém o atual: dá para trocar só um dos dois |
 | Claude Desktop e Antigravity IDE | `bash scripts/13-desktopApps.sh` | - |
 | Tela de login sem risco (escura, seus ícones, sem logo) | `bash scripts/14-loginScreen.sh` | copia os temas de ícones e cursores para `/usr/share/icons` (rode o 10 antes) |
+| **Beta, com risco**: fundo da tela de login com o papel de parede desfocado | `bash scripts/15-loginBackground.sh` (ou `./app.sh --beta` e o 15) | mostra os riscos e pede `sim` antes; desfaça com `bash scripts/15-loginBackground.sh --restore` (caso de uso 16) |
+
+Os módulos experimentais (beta) ficam fora do menu, do `--all` e da interface gráfica, a não ser com `--beta`: `./app.sh --beta` (menu), `./app.sh --all --beta` ou `./app.sh --gui --beta`. Rodados direto pelo `bash`, eles mesmos mostram o aviso e pedem confirmação.
 
 ### 4. Completar um sistema já configurado (ou uma instalação interrompida)
 Para uma instalação interrompida, rode o mesmo módulo (ou o `--all`) de novo. O que já foi feito é detectado e pulado: pacotes instalados, repositórios configurados, clones existentes, fontes, temas, Node LTS e a chave SSH. O que já existe só é atualizado conforme a política de versões (caso de uso 5).
@@ -148,6 +151,7 @@ O que muda em cada módulo:
 | 12 | Mantém o papel de parede e a foto que você já escolheu; só pergunta o que ainda está no padrão |
 | 13 | Instala o que falta; mantém um atalho do Antigravity IDE que já existe e, com o Claude Desktop já instalado, os seus grupos (o `kvm` só entra junto com uma instalação nova) |
 | 14 | Mantém a tela de login como está, a menos que ela já tenha sido configurada pelo 14 (aí só copia os temas que faltam) |
+| 15 (beta) | Mantém o fundo atual da tela de login, a menos que ele já seja o do 15 |
 | 00, 02, 03, 05, 09 | Iguais: só instalam ou adicionam o que falta (o 00 só acrescenta grupos) (o 03 só lista as atualizações, pela política `keep`) |
 
 Cada item mantido aparece na saída como "Only-missing mode: keeping ...". Os Flatpaks e pacotes da lista que você desinstalou de propósito voltam a ser instalados (não há como distinguir "nunca instalado" de "removido"); para evitar, rode pelo menu só os módulos que quiser.
@@ -274,10 +278,27 @@ As regras são heurísticas: revise sempre o `git diff` antes de commitar.
 - Os temas de ícones e cursores do seu `$HOME` são copiados para `/usr/share/icons`, porque a tela de login não lê a sua pasta pessoal. Rode o 10 antes.
 - Aparece na próxima vez que a tela de login abrir (logout ou reinício). Sem GDM (outro gerenciador de login) ou fora do GNOME, o módulo avisa e termina sem fazer nada.
 
-### 16. Adicionar uma nova etapa de automação
+### 16. Testar funcionalidades experimentais (beta)
+```bash
+./app.sh --beta              # menu com a seção BETA
+./app.sh --all --beta        # tudo, com os beta (confirmação única no início)
+./app.sh --gui --beta        # interface gráfica com os beta
+bash scripts/15-loginBackground.sh            # um beta isolado (pede confirmação)
+bash scripts/15-loginBackground.sh --restore  # desfaz o 15
+```
+O que pode deixar o sistema num estado ruim fica num módulo **experimental**, fora do fluxo normal. Antes de mudar qualquer coisa, ele mostra a **função**, **o que faz** (arquivos e comandos), os **riscos** e **como desfazer**, e só segue se você digitar `sim`. No `--all --beta`, esse aviso aparece no início para todos os módulos beta, com uma única confirmação, para o resto da execução não parar no meio.
+
+**Módulo 15 (beta): fundo da tela de login com o papel de parede desfocado.**
+- **Função**: troca a cor sólida da tela de login (GDM) pelo seu papel de parede atual, desfocado e escurecido. Combina com a tela minimalista do 14.
+- **O que faz**: o GNOME não tem configuração para o fundo da tela de login; ele vem do CSS embutido em `/usr/share/gnome-shell/gnome-shell-theme.gresource` (regra `#lockDialogGroup`). O módulo extrai esse recurso, acrescenta aos CSS escuro e claro uma regra com a imagem, embute a imagem (1920 px, desfocada e escurecida com GdkPixbuf), recompila com `glib-compile-resources`, confere o resultado e substitui o arquivo com sudo, guardando o original em `/var/lib/dotfiles/gnome-shell-theme.gresource.orig`.
+- **Riscos**: o arquivo pertence ao pacote `gnome-shell` (`gnome-shell-common` no Debian), então `rpm -V` passa a acusá-lo e **cada atualização do gnome-shell desfaz a mudança** (rode o 15 de novo). Um recurso incompatível com a versão do GNOME Shell pode deixar a tela de login sem estilo ou preta. Foi validado em containers (montagem do recurso, cópia de segurança e restauração no Fedora 44 e no Debian 13), mas o desenho da tela de login só se confirma no seu próximo logout. Versões sem `#lockDialogGroup` e o Ubuntu são recusados.
+- **Como desfazer**: `bash scripts/15-loginBackground.sh --restore`, ou `sudo dnf reinstall gnome-shell` (Debian: `sudo apt-get install --reinstall gnome-shell-common`). Se a tela de login não abrir: **Ctrl+Alt+F3**, entre no terminal, rode um desses comandos e depois `sudo systemctl restart gdm`.
+- O papel de parede vem do GNOME (o do estilo escuro); se não for uma imagem, do `WALLPAPER_IMAGE` do `.env`. Trocou o papel de parede? Rode o 15 de novo.
+
+### 17. Adicionar uma nova etapa de automação
 Veja [Desenvolvimento](#desenvolvimento). Basta criar `scripts/NN-nome.sh` com o cabeçalho certo: o menu e o `--all` passam a incluí-lo automaticamente.
 
-### 17. Usar agentes de IA para manter o projeto
+### 18. Usar agentes de IA para manter o projeto
 Antigravity, Claude Code, Cursor e GitHub Copilot já encontram as regras do projeto. Veja [Trabalhando com agentes de IA](#trabalhando-com-agentes-de-ia).
 
 ## Módulos
@@ -299,6 +320,7 @@ Antigravity, Claude Code, Cursor e GitHub Copilot já encontram as regras do pro
 | 12 | `12-wallpaperAndAvatar.sh` | Só no GNOME: papel de parede e foto do usuário, escolhidos num seletor de arquivos ou pelo `.env` | só para instalar o `zenity` (seletor), se faltar |
 | 13 | `13-desktopApps.sh` | Claude Desktop (só Debian e Ubuntu, pelo repositório apt oficial; no Fedora não há pacote oficial e o módulo avisa) e Antigravity IDE (tarball oficial em `~/.local/share/antigravity-ide`, com atalho no menu e comando `antigravity-ide`) | só para o Claude Desktop |
 | 14 | `14-loginScreen.sh` | Só no GNOME com GDM: tela de login escura, com seus ícones e cursores, relógio, touchpad e teclado do desktop e sem logo | sim |
+| 15 | `15-loginBackground.sh` | **Beta** (só com `--beta`; mostra os riscos e pede confirmação): fundo da tela de login com o papel de parede desfocado, recompilando o recurso de tema do GNOME Shell; `--restore` desfaz (caso de uso 16) | sim |
 
 No Fedora, o pacote `malcontent` (controle parental) **não** é removido, porque o GNOME Settings depende dele; sai apenas a interface `malcontent-control`.
 
@@ -313,6 +335,7 @@ Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de us
 - **Boot**: `/etc/default/grub` (com backup) e `/boot/grub2/grub.cfg`; tema GRUB em `/boot/grub2/themes` (com `-b`); tema Plymouth em `/usr/share/plymouth/themes/deus_ex`, com o initramfs reconstruído; no Debian, `splash` em `GRUB_CMDLINE_LINUX_DEFAULT` e o tema em `/etc/plymouth/plymouthd.conf`.
 - **Configurações do GNOME (dconf do seu usuário)**: as chaves de `style/gnome/dconf/*.ini`. Só as chaves listadas são alteradas; o resto fica como está. O módulo 12 altera também o papel de parede (`org.gnome.desktop.background` e `org.gnome.desktop.screensaver`).
 - **Tela de login (módulo 14)**: `/etc/dconf/db/gdm.d/95-dotfiles` e o banco compilado `/etc/dconf/db/gdm` no Fedora, ou `/usr/share/gdm/dconf/95-dotfiles` e `/var/lib/gdm3/greeter-dconf-defaults` no Debian e no Ubuntu; cópias dos temas de ícones e cursores em `/usr/share/icons` (Tela-circle, Tela-circle-dark e Vimix-cursors).
+- **Fundo da tela de login (módulo 15, beta, só com `--beta` e confirmação)**: substitui `/usr/share/gnome-shell/gnome-shell-theme.gresource`, arquivo do pacote `gnome-shell`, e guarda o original em `/var/lib/dotfiles/gnome-shell-theme.gresource.orig`.
 - **No `$HOME`**: `~/Dev`, `~/.oh-my-zsh`, `~/.zshrc` (com backup), `~/.local/share/fonts/NerdFonts`, temas em `~/.themes` e `~/.local/share/icons`, extensões em `~/.local/share/gnome-shell/extensions`, `~/.config/burn-my-windows`, cópias dos papéis de parede em `~/.local/share/backgrounds`, `~/.cargo`, `~/.rustup`, `~/.local/share/fnm`, `~/.local/share/pnpm`, Claude Code em `~/.local/bin/claude` e `~/.local/share/claude`, Antigravity em `~/.local/bin/agy`, Antigravity IDE em `~/.local/share/antigravity-ide` (comando `~/.local/bin/antigravity-ide` e atalho `~/.local/share/applications/antigravity-ide.desktop`), logs em `~/.local/state/dotfiles/logs`, versões registradas em `~/.local/state/dotfiles/versions`, preferência de tema da interface gráfica em `~/.config/dotfiles/gui.ini` e o atalho dela em `~/.local/share/applications/local.dotfiles.Setup.desktop` (só se você pedir), `~/.gitconfig` e `~/.ssh`.
 
 ## Solução de problemas
@@ -378,6 +401,7 @@ Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de us
    # ... lógica idempotente
    ```
 3. Rode `chmod +x scripts/NN-nome.sh`. Não é preciso editar o `app.sh`.
+4. **Passo com risco** (altera arquivos de pacotes, o que o GDM ou o boot carregam etc.)? Faça um módulo experimental: `# MENU_DESC: [BETA] ...`, `# CATEGORY: BETA`, `# STAGE: beta` e pelo menos uma linha de `# BETA_FUNCTION:`, `# BETA_DOES:`, `# BETA_RISK:` e `# BETA_UNDO:` (o aviso, técnico), e chame `confirm_beta` antes de qualquer mudança. Ele só aparece com `--beta`. Regras em `.agents/rules/03-standards.md`, seção 9.
 
 ### Funções do `lib.sh`
 | Função / variável | Uso |
@@ -393,6 +417,8 @@ Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de us
 | `clone_if_missing repo destino` | `git clone` idempotente |
 | `load_env` | Carrega o `.env` da raiz |
 | `ensure_flathub` | Garante o remoto Flathub de sistema |
+| `ensure_gdkpixbuf` | Python com GdkPixbuf, para abrir e gerar imagens como o GNOME |
+| `beta_notice` / `confirm_beta` | Aviso de um módulo experimental (lido do cabeçalho) e confirmação por `sim` antes de qualquer mudança |
 | `install_packages titulo pacote...` | Instala os pacotes que faltam e oferece as versões novas dos instalados (política de versões) |
 | `install_missing_packages pacote...` | Só instala o que falta; nunca atualiza |
 | `offer_package_upgrades titulo pacote...` | Só a parte de oferecer versões novas dos instalados |
@@ -401,7 +427,6 @@ Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de us
 | `confirm_updates titulo linha...` | Mostra `atual -> nova`, o aviso e decide pela política (`ask` pergunta) |
 | `record_version` / `recorded_version` | Registro de versão do que não vem de pacote (temas, fontes) |
 | `version_gt a b` | Compara versões (`24.9` < `24.21`) |
-4. **Passo com risco** (altera arquivos de pacotes, o que o GDM ou o boot carregam etc.)? Faça um módulo experimental: `# MENU_DESC: [BETA] ...`, `# CATEGORY: BETA`, `# STAGE: beta` e pelo menos uma linha de `# BETA_FUNCTION:`, `# BETA_DOES:`, `# BETA_RISK:` e `# BETA_UNDO:` (o aviso, técnico), e chame `confirm_beta` antes de qualquer mudança. Ele só aparece com `--beta`. Regras em `.agents/rules/03-standards.md`, seção 9.
 | `UPDATE_POLICY` | Política em uso: `ask`, `update` ou `keep` |
 | `only_missing` / `CONFIG_MODE` | Verdadeiro no modo completar (`--only-missing`); `CONFIG_MODE` é `full` ou `missing` |
 | `keep_existing "o quê"` | Avisa que algo que já existia foi mantido (modo completar) |
@@ -417,8 +442,6 @@ Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de us
 - **GNOME só no GNOME**: módulos que só configuram o GNOME chamam `require_gnome`; etapas do GNOME em outros módulos ficam dentro de `gnome_only`. O `tools/check.sh` falha se um módulo usar `gsettings`, `dconf` ou `gnome-extensions` sem essa proteção.
 - **Sem caminhos fixos**: use `$SCRIPT_DIR`, `$DOTFILES_DIR`, `$HOME` e `mktemp`.
 - **Sem dados pessoais no código**: use o `.env`.
-| `ensure_gdkpixbuf` | Python com GdkPixbuf, para abrir e gerar imagens como o GNOME |
-| `beta_notice` / `confirm_beta` | Aviso de um módulo experimental (lido do cabeçalho) e confirmação por `sim` antes de qualquer mudança |
 - **Fedora**: só sintaxe do dnf5 e nomes de pacote validados (detalhes em `.agents/rules/06-fedora.md`).
 
 ### Validar mudanças sem tocar no sistema
