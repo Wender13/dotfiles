@@ -97,6 +97,26 @@ bash scripts/05-flatpakPrograms.sh
 ```
 Útil em scripts próprios ou para repetir uma única etapa. Cada módulo funciona sozinho: dependências básicas (git, curl, flatpak, zsh) são instaladas se faltarem. Os módulos usam `sudo`: num Debian em que o seu usuário ainda não o tem, rode antes o `00`.
 
+**Ativar uma funcionalidade sozinha.** Cada funcionalidade é um módulo: rode só ele, pelo menu (`./app.sh` e o número) ou direto. Sem o menu, a política de versões e o modo vêm de variáveis de ambiente (as mesmas que o `app.sh` repassa), por exemplo `DOTFILES_UPDATE_POLICY=keep DOTFILES_CONFIG_MODE=missing bash scripts/14-loginScreen.sh`.
+
+| Quero só... | Rode | O módulo faz junto |
+| --- | --- | --- |
+| Dar sudo ao meu usuário (Debian) | `bash scripts/00-sudoAccess.sh` | grupos `adm` e `systemd-journal` |
+| Pastas `~/Dev` e repositórios pessoais | `bash scripts/01-setupEnv.sh` | - |
+| Permissão de execução dos scripts | `bash scripts/02-permissions.sh` | - |
+| Atualizar o sistema e os Flatpaks | `bash scripts/03-update.sh` | avisos de firmware e reinício |
+| Programas base, codecs e driver de vídeo | `bash scripts/04-commonPrograms.sh` | remove o LibreOffice e o bloatware do GNOME (com `DOTFILES_CONFIG_MODE=missing`, nada é removido) |
+| Aplicativos Flatpak | `bash scripts/05-flatpakPrograms.sh` | - |
+| VSCode, Chrome, MongoDB e Docker | `bash scripts/06-externalRepos.sh` | - |
+| Identidade Git e chave SSH | `bash scripts/07-gitAndSSH.sh` | - |
+| Terminal (zsh, oh-my-zsh, fontes) | `bash scripts/08-terminalAndShell.sh` | troca o shell padrão para o zsh |
+| Ambientes de desenvolvimento | `bash scripts/09-devEnvironments.sh` | - |
+| Temas do GNOME (Orchis, Tela Circle, Vimix) | `bash scripts/10-themesAndGrub.sh` | GRUB oculto, tema do GRUB (só com `GRUB_THEME_ARGS`) e tela de boot Plymouth: hoje não dá para rodar só os temas |
+| Extensões, configurações e atalhos do GNOME | `bash scripts/11-gnomeSettings.sh` | - |
+| Papel de parede e foto do usuário | `bash scripts/12-wallpaperAndAvatar.sh` | Cancelar no seletor mantém o atual: dá para trocar só um dos dois |
+| Claude Desktop e Antigravity IDE | `bash scripts/13-desktopApps.sh` | - |
+| Tela de login sem risco (escura, seus ícones, sem logo) | `bash scripts/14-loginScreen.sh` | copia os temas de ícones e cursores para `/usr/share/icons` (rode o 10 antes) |
+
 ### 4. Completar um sistema já configurado (ou uma instalação interrompida)
 Para uma instalação interrompida, rode o mesmo módulo (ou o `--all`) de novo. O que já foi feito é detectado e pulado: pacotes instalados, repositórios configurados, clones existentes, fontes, temas, Node LTS e a chave SSH. O que já existe só é atualizado conforme a política de versões (caso de uso 5).
 
@@ -126,6 +146,7 @@ O que muda em cada módulo:
 | 11 | Instala as extensões que faltam; aplica só as configurações do GNOME que você ainda não definiu; acrescenta à sua lista de extensões ativas as do repositório que você não ativou nem desativou |
 | 12 | Mantém o papel de parede e a foto que você já escolheu; só pergunta o que ainda está no padrão |
 | 13 | Instala o que falta; mantém um atalho do Antigravity IDE que já existe e, com o Claude Desktop já instalado, os seus grupos (o `kvm` só entra junto com uma instalação nova) |
+| 14 | Mantém a tela de login como está, a menos que ela já tenha sido configurada pelo 14 (aí só copia os temas que faltam) |
 | 00, 02, 03, 05, 09 | Iguais: só instalam ou adicionam o que falta (o 00 só acrescenta grupos) (o 03 só lista as atualizações, pela política `keep`) |
 
 Cada item mantido aparece na saída como "Only-missing mode: keeping ...". Os Flatpaks e pacotes da lista que você desinstalou de propósito voltam a ser instalados (não há como distinguir "nunca instalado" de "removido"); para evitar, rode pelo menu só os módulos que quiser.
@@ -146,7 +167,6 @@ As perguntas são **uma por grupo** (por exemplo, "04 - programas comuns: 6 item
 | O que | Como a versão é comparada | Como atualiza |
 | --- | --- | --- |
 | Pacotes dnf/apt (04, 06, 09, 10, extensões empacotadas no 11) | versão instalada x repositório | `dnf upgrade` / `apt-get install --only-upgrade` só dos itens listados |
-| 14 | Mantém a tela de login como está, a menos que ela já tenha sido configurada pelo 14 (aí só copia os temas que faltam) |
 | Flatpaks (05) | `flatpak remote-ls --updates` | `flatpak update` dos itens listados |
 | Rust | `rustup check` | `rustup update` |
 | Node.js | versão padrão do fnm x LTS mais recente | instala o LTS e o define como padrão (pacotes globais do npm ficam na versão anterior) |
@@ -277,6 +297,7 @@ Antigravity, Claude Code, Cursor e GitHub Copilot já encontram as regras do pro
 | 11 | `11-gnomeSettings.sh` | Só no GNOME: extensões, configurações do sistema e das extensões, apps do dock e atalhos | só para extensões empacotadas no Fedora |
 | 12 | `12-wallpaperAndAvatar.sh` | Só no GNOME: papel de parede e foto do usuário, escolhidos num seletor de arquivos ou pelo `.env` | só para instalar o `zenity` (seletor), se faltar |
 | 13 | `13-desktopApps.sh` | Claude Desktop (só Debian e Ubuntu, pelo repositório apt oficial; no Fedora não há pacote oficial e o módulo avisa) e Antigravity IDE (tarball oficial em `~/.local/share/antigravity-ide`, com atalho no menu e comando `antigravity-ide`) | só para o Claude Desktop |
+| 14 | `14-loginScreen.sh` | Só no GNOME com GDM: tela de login escura, com seus ícones e cursores, relógio, touchpad e teclado do desktop e sem logo | sim |
 
 No Fedora, o pacote `malcontent` (controle parental) **não** é removido, porque o GNOME Settings depende dele; sai apenas a interface `malcontent-control`.
 
@@ -290,6 +311,7 @@ Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de us
 - **Usuário**: o shell padrão passa a ser o zsh (`usermod --shell`); a foto escolhida no módulo 12 é entregue ao AccountsService, que guarda a cópia dele em `/var/lib/AccountsService/icons/`.
 - **Boot**: `/etc/default/grub` (com backup) e `/boot/grub2/grub.cfg`; tema GRUB em `/boot/grub2/themes` (com `-b`); tema Plymouth em `/usr/share/plymouth/themes/deus_ex`, com o initramfs reconstruído; no Debian, `splash` em `GRUB_CMDLINE_LINUX_DEFAULT` e o tema em `/etc/plymouth/plymouthd.conf`.
 - **Configurações do GNOME (dconf do seu usuário)**: as chaves de `style/gnome/dconf/*.ini`. Só as chaves listadas são alteradas; o resto fica como está. O módulo 12 altera também o papel de parede (`org.gnome.desktop.background` e `org.gnome.desktop.screensaver`).
+- **Tela de login (módulo 14)**: `/etc/dconf/db/gdm.d/95-dotfiles` e o banco compilado `/etc/dconf/db/gdm` no Fedora, ou `/usr/share/gdm/dconf/95-dotfiles` e `/var/lib/gdm3/greeter-dconf-defaults` no Debian e no Ubuntu; cópias dos temas de ícones e cursores em `/usr/share/icons` (Tela-circle, Tela-circle-dark e Vimix-cursors).
 - **No `$HOME`**: `~/Dev`, `~/.oh-my-zsh`, `~/.zshrc` (com backup), `~/.local/share/fonts/NerdFonts`, temas em `~/.themes` e `~/.local/share/icons`, extensões em `~/.local/share/gnome-shell/extensions`, `~/.config/burn-my-windows`, cópias dos papéis de parede em `~/.local/share/backgrounds`, `~/.cargo`, `~/.rustup`, `~/.local/share/fnm`, `~/.local/share/pnpm`, Claude Code em `~/.local/bin/claude` e `~/.local/share/claude`, Antigravity em `~/.local/bin/agy`, Antigravity IDE em `~/.local/share/antigravity-ide` (comando `~/.local/bin/antigravity-ide` e atalho `~/.local/share/applications/antigravity-ide.desktop`), logs em `~/.local/state/dotfiles/logs`, versões registradas em `~/.local/state/dotfiles/versions`, preferência de tema da interface gráfica em `~/.config/dotfiles/gui.ini` e o atalho dela em `~/.local/share/applications/local.dotfiles.Setup.desktop` (só se você pedir), `~/.gitconfig` e `~/.ssh`.
 
 ## Solução de problemas
@@ -297,7 +319,6 @@ Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de us
 - **Algo falhou no `--all` e a saída já rolou da tela**: veja o log indicado no resumo final (`~/.local/state/dotfiles/logs/`).
 - **"[ERRO CRITICO] Falha na execucao do script!"**: a mensagem mostra o arquivo, a linha, o comando e o status. Corrija a causa (rede, repositório fora do ar, pacote renomeado) e rode o módulo de novo.
 - **"No match for argument" no dnf**: um pacote foi renomeado ou removido numa nova versão do Fedora. Confira com `dnf repoquery --available <nome>` e atualize a lista no módulo.
-| 14 | `14-loginScreen.sh` | Só no GNOME com GDM: tela de login escura, com seus ícones e cursores, relógio, touchpad e teclado do desktop e sem logo | sim |
 - **"Do not run this as root"**: rode como seu usuário, sem `sudo` na frente.
 - **"sudo: command not found"** ou **"is not in the sudoers file"** (Debian instalado com senha de root): rode `./app.sh`, escolha o módulo `00` e digite a senha de **root** quando o `su` pedir; depois faça logout e login. O `./app.sh --all` faz isso sozinho.
 - **"Debian 13 (trixie) or newer is required"**: o projeto suporta o Debian 13 em diante (a interface gráfica precisa da libadwaita 1.7). Atualize o sistema antes.
@@ -311,7 +332,6 @@ Transparência sobre tudo o que sai do `$HOME` (no modo completar, do caso de us
 - **"GNOME not detected"**: a sessão gráfica não é o GNOME (ou o GNOME Shell não está instalado), e as etapas do GNOME foram puladas de propósito. Se você está no GNOME, rode de um terminal aberto dentro da sessão.
 - **"No D-Bus session found" nos módulos 11 e 12**: rode a partir de um terminal aberto dentro da sessão do GNOME, não por SSH ou TTY.
 - **"Could not install <extensão> for GNOME Shell N"**: a extensão ainda não tem versão para o seu GNOME (comum logo após uma atualização do Fedora). As configurações são aplicadas mesmo assim; rode o 11 de novo mais tarde.
-- **Tela de login (módulo 14)**: `/etc/dconf/db/gdm.d/95-dotfiles` e o banco compilado `/etc/dconf/db/gdm` no Fedora, ou `/usr/share/gdm/dconf/95-dotfiles` e `/var/lib/gdm3/greeter-dconf-defaults` no Debian e no Ubuntu; cópias dos temas de ícones e cursores em `/usr/share/icons` (Tela-circle, Tela-circle-dark e Vimix-cursors).
 - **Extensões instaladas mas inativas**: faça logout e login (no Wayland o GNOME só carrega extensões novas ao iniciar a sessão).
 
 ## Estrutura do projeto
